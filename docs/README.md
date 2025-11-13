@@ -2,7 +2,11 @@
 
 ## Overview
 
-The Tales of Shadowland MMORPG server is a high-performance game server designed to support 10,000 concurrent players with a 60 FPS tick rate and processing 600,000 UDP packets per second. The server is being implemented in Rust to achieve maximum performance while maintaining security and scalability.
+The Tales of Shadowland MMORPG server is a high-performance game server designed to support 10,000 concurrent players with a 60 FPS tick rate and processing 600,000 UDP packets per second. The server is being implemented in **Rust (Edition 2024, nightly 1.85+)** to achieve maximum performance while maintaining security and scalability.
+
+The project follows **spec-driven development** using **OpenSpec** to ensure alignment between requirements and implementation before code is written.
+
+> **Note**: Legacy TypeScript and C# implementations serve as **reference material only** for understanding game systems. The production server is being built from scratch in Rust. See [VERSIONS.md](./VERSIONS.md) for details.
 
 ## Architecture
 
@@ -20,21 +24,30 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./server/ARCHITEC
 
 ### Current Status
 
-The C# version is functional but has performance limitations that prevent scaling to the target of 10,000 concurrent players. The Rust implementation is planned to address these limitations.
+The **Rust version** is the only active development target. Legacy TypeScript and C# versions are **deprecated** and serve only as reference material for understanding game systems and mechanics.
 
-**C# Version:**
-- ✅ Most systems implemented
-- ⚠️ Performance limitations (GC pauses, allocation overhead)
+**Rust Version (Active Development):**
+- 🔲 Implementation in progress (see [ROADMAP.md](./server/ROADMAP.md))
+- 🎯 Target: 10,000 concurrent players
+- 🎯 Target: 600,000 packets/second
+- 🎯 Target: 60 FPS stable tick rate
+- ⚡ Zero-allocation design
+- 🔒 Advanced security (ChaCha20-Poly1305, X25519)
+- 📊 Complete telemetry system (hardware, network, performance metrics)
+- 💰 Advanced economy systems (auction house, magic stone market, bulk orders, lottery)
+- 🏗️ Custom ECS framework (zero-allocation, lock-free)
+- 🗄️ Dual database architecture (SQLite for game server, PostgreSQL for API principal)
+- 🌐 API principal with admin dashboard
+
+**Legacy Versions (Reference Only):**
+- 📚 TypeScript: Complete game systems reference
+- 📚 C#: Historical architecture reference
+- ⚠️ Not recommended for production use
 - ⚠️ Limited to ~1,000 concurrent players
-- ⚠️ Packet processing bottleneck at high load
 
-**Rust Version:**
-- 🔲 Implementation in progress
-- 🔲 Target: 10,000 concurrent players
-- 🔲 Target: 600,000 packets/second
-- 🔲 Target: 60 FPS stable tick rate
-
-For detailed status information, see [STATUS.md](./server/STATUS.md).
+For detailed status information, see [STATUS.md](./server/STATUS.md).  
+For version clarification, see [VERSIONS.md](./VERSIONS.md).  
+For migration guidelines, see [MIGRATION.md](./MIGRATION.md).
 
 ## Roadmap
 
@@ -95,7 +108,7 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
 - Certificate rotation (rekey system)
 
 ### Entity System
-- Entity Component System (ECS) architecture
+- **Custom ECS framework** (zero-allocation, lock-free)
 - Structure of Arrays (SoA) layout for cache efficiency
 - Zero-allocation entity pooling
 - Component-based entity types (Player, NPC, Monster, etc.)
@@ -168,6 +181,14 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
 - Real-time state updates
 - State serialization
 
+## Structure Review
+
+The server structure has been analyzed against industry standards. See:
+
+- [STRUCTURE_SUMMARY.md](./STRUCTURE_SUMMARY.md) - Quick reference and key decisions
+- [STRUCTURE_ANALYSIS.md](./STRUCTURE_ANALYSIS.md) - Detailed market comparison
+- [STRUCTURE_RECOMMENDATIONS.md](./STRUCTURE_RECOMMENDATIONS.md) - Implementation recommendations
+
 ## Documentation
 
 ### Architecture Documentation
@@ -199,6 +220,26 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
   - Dependencies between phases
   - Risk mitigation
   - Success metrics
+
+### Telemetry and Monitoring
+
+- [TELEMETRY.md](./server/TELEMETRY.md) - Server telemetry system
+  - Hardware metrics (CPU, memory, disk I/O)
+  - Network metrics (latency, packets/sec, ping)
+  - Performance metrics (FPS, tick rate, update cycles)
+  - Game metrics (players, entities, database)
+  - Prometheus export format
+  - API principal integration
+
+### Advanced Economy Systems
+
+- [ECONOMY.md](./server/ECONOMY.md) - Advanced economy systems
+  - Gold burn system (inflation control)
+  - Auction house (buyout and bidding)
+  - Magic stone market (PoE2-style currency exchange)
+  - Bulk orders (player-created crafting orders)
+  - NPC bulk orders (NPC-created orders)
+  - Lottery system (weekly lottery with gold burn integration)
 
 ### System Documentation
 
@@ -624,11 +665,18 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
 ## Requirements
 
 ### Rust Implementation
-- Rust 1.70+ (edition 2021)
+- **Rust 1.85+ (Edition 2024, nightly toolchain)**
 - Tokio for async I/O
-- Mio for efficient polling
-- Ring for cryptography
+- Mio for low-level UDP operations
+- sqlx for database access (SQLite for game server, PostgreSQL for API principal)
+- chacha20poly1305 for encryption
 - LZ4 for compression
+- sysinfo for telemetry
+- prometheus for metrics export
+
+### Database
+- **Game Server**: SQLite (embedded, via sqlx)
+- **API Principal**: PostgreSQL (via sqlx)
 
 ### Unreal Engine Client
 - Unreal Engine 5.5+
@@ -636,68 +684,144 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
 - Hardware-accelerated CRC32C
 - Optimized deserializer
 
+### Development Tools
+- cargo-nextest for fast test execution
+- cargo-llvm-cov for code coverage (95%+ required)
+- rustfmt (nightly toolchain)
+- clippy (warnings as errors)
+- codespell for typo detection
+
 ## Development
 
 ### Project Structure
 ```
 Server/
-├── docs/           # Documentation
-│   ├── server/     # Server-side documentation
-│   │   ├── ARCHITECTURE.md
-│   │   ├── STATUS.md
-│   │   └── ROADMAP.md
-│   ├── core/       # Core systems documentation
-│   │   ├── BYTEBUFFER.md
-│   │   ├── ENTITIES.md
-│   │   ├── FLAGS.md
-│   │   ├── CONDITIONS.md
-│   │   ├── TEAMS.md
-│   │   ├── MOVEMENT.md
-│   │   ├── GOLD.md
-│   │   ├── RESISTANCES.md
-│   │   ├── DAMAGE.md
-│   │   └── STATUS.md
-│   ├── items/      # Items and containers documentation
-│   │   ├── ITEMS.md
-│   │   ├── CONTAINERS.md
-│   │   ├── DURABILITY.md
-│   │   ├── MAGIC_STONES.md
-│   │   └── ATTRIBUTES.md
-│   ├── player/     # Player system documentation
-│   │   ├── PLAYER.md
-│   │   ├── SKILLS.md
-│   │   └── GATHERING.md
-│   ├── client/     # Client-side documentation
-│   │   ├── ENTITY_SYNC.md
-│   │   └── SUBSYSTEM.md
-│   └── README.md
-├── src/            # Rust source code (to be implemented)
-├── Cargo.toml      # Rust project configuration (to be created)
-└── README.md       # Main README
+├── Cargo.toml                    # Workspace root
+├── README.md                     # Main README
+│
+├── crates/                       # All library crates
+│   ├── tos-core/                # Core game logic + ECS
+│   ├── tos-network/             # Networking
+│   ├── tos-protocol/            # Protocol definitions
+│   ├── tos-database/            # Database layer (SQLite)
+│   ├── tos-api/                 # API principal (REST API)
+│   └── tos-common/              # Shared utilities
+│
+├── bin/                          # Executables
+│   ├── server/                   # Game server binary (UDP)
+│   └── api/                      # API principal binary (HTTP/REST)
+│
+├── dashboard/                    # Web dashboard (frontend)
+│   ├── package.json
+│   ├── src/
+│   └── public/
+│
+├── tests/                        # Integration tests
+├── benches/                      # Benchmarks
+├── examples/                     # Example code
+│
+├── openspec/                     # OpenSpec specifications
+│   ├── project.md
+│   ├── AGENTS.md
+│   ├── specs/
+│   └── changes/
+│
+└── docs/                         # Documentation
+    ├── server/     # Server-side documentation
+    │   ├── ARCHITECTURE.md
+    │   ├── STATUS.md
+    │   ├── ROADMAP.md
+    │   ├── TELEMETRY.md
+    │   └── ECONOMY.md
+    ├── core/       # Core systems documentation
+    │   ├── BYTEBUFFER.md
+    │   ├── ENTITIES.md
+    │   ├── FLAGS.md
+    │   ├── CONDITIONS.md
+    │   ├── TEAMS.md
+    │   ├── MOVEMENT.md
+    │   ├── GOLD.md
+    │   ├── RESISTANCES.md
+    │   ├── DAMAGE.md
+    │   └── STATUS.md
+    ├── items/      # Items and containers documentation
+    │   ├── ITEMS.md
+    │   ├── CONTAINERS.md
+    │   ├── DURABILITY.md
+    │   ├── MAGIC_STONES.md
+    │   └── ATTRIBUTES.md
+    ├── player/     # Player system documentation
+    │   ├── PLAYER.md
+    │   ├── SKILLS.md
+    │   └── GATHERING.md
+    ├── client/     # Client-side documentation
+    │   ├── ENTITY_SYNC.md
+    │   └── SUBSYSTEM.md
+    └── README.md
 ```
 
 ### Building
 ```bash
-# Build the server
+# Build workspace (all crates)
 cargo build --release
 
-# Run the server
-cargo run --release
+# Build game server
+cargo build --release --bin server
 
-# Run tests
-cargo test
+# Build API principal
+cargo build --release --bin api
+
+# Run game server
+cargo run --release --bin server
+
+# Run API principal
+cargo run --release --bin api
+
+# Run all tests
+cargo test --workspace --all-features
+
+# Run tests with nextest (faster)
+cargo nextest run --workspace --all-features
+
+# Check code coverage (95%+ required)
+cargo llvm-cov --all
+
+# Format code (nightly toolchain)
+cargo +nightly fmt --all
+
+# Lint code (warnings as errors)
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Run benchmarks
 cargo bench
 ```
 
+### Dashboard Development
+```bash
+cd dashboard
+npm install
+npm run dev      # Development server
+npm run build    # Production build
+```
+
 ### Configuration
-The server configuration is defined in `server-config.json`:
+
+**Game Server Configuration:**
 - Network configuration (port, MTU, buffers)
 - Security configuration (encryption, integrity, heartbeat)
 - Performance configuration (tick rate, timeouts)
 - AOI configuration (distances, grid size)
 - World origin rebasing configuration (quadrants, scale)
+- SQLite database path and settings
+- Telemetry collection settings
+
+**API Principal Configuration:**
+- HTTP server port and bind address
+- PostgreSQL connection string
+- CORS configuration
+- Rate limiting settings
+- Authentication token settings
+- Telemetry endpoint configuration
 
 ## Testing
 
@@ -773,23 +897,47 @@ The server configuration is defined in `server-config.json`:
 
 ## Contributing
 
+### Development Workflow
+
+**CRITICAL RULES:**
+1. Always reference `@AGENTS.md` before coding
+2. Write tests first (95%+ coverage required)
+3. Run quality checks before committing:
+   - Type check: `cargo check --workspace`
+   - Format check: `cargo +nightly fmt --all -- --check`
+   - Linter: `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+   - All tests: `cargo test --workspace --all-features` (100% pass rate)
+   - Coverage: `cargo llvm-cov --all` (95%+ required)
+4. Update docs/ when implementing features
+5. Follow strict documentation structure
+
 ### Code Style
 - Follow Rust style guidelines
-- Use `rustfmt` for formatting
-- Use `clippy` for linting
-- Write comprehensive tests
+- Use `rustfmt` with nightly toolchain: `cargo +nightly fmt --all`
+- Use `clippy` with `-D warnings` (warnings as errors)
+- Write comprehensive tests (95%+ coverage)
+- Use Rust Edition 2024 (never 2021)
+
+### OpenSpec Workflow
+- Create OpenSpec proposals for new features/breaking changes
+- Validate specs: `openspec validate --strict`
+- Get approval before implementation
+- Archive changes after deployment
 
 ### Documentation
-- Document all public APIs
+- Document all public APIs with `///` doc comments
 - Write inline documentation
 - Update architecture documentation
 - Keep roadmap up to date
+- Update docs/ when implementing features
 
 ### Testing
-- Write unit tests for all functions
-- Write integration tests for systems
+- Write unit tests for all functions (`#[cfg(test)]` in same file)
+- Write integration tests in `/tests` directory
 - Write load tests for performance
 - Write stress tests for robustness
+- Use `cargo-nextest` for faster test execution
+- Achieve 95%+ code coverage
 
 ## License
 
