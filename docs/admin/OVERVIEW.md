@@ -36,8 +36,9 @@ The central API server is designed with replication to support high request volu
 
 ### Configuration API
 - Server startup preload
-- Content replication
+- Content replication (items, NPCs, quests, zones, events, patrols, creatures, respawns)
 - Configuration management
+- Unified world structure across all servers
 - See [CONFIG_API.md](./CONFIG_API.md) for details
 
 ### Administrative Dashboard
@@ -84,7 +85,25 @@ The central API server is designed with replication to support high request volu
 - [REAL_TIME_UPDATES.md](./REAL_TIME_UPDATES.md) - Real-time updates via SSE
 - [PERSISTENCE.md](./PERSISTENCE.md) - Data persistence and PostgreSQL
 
+## Content Replication
+
+**Important:** All game servers share the same world structure. The following content is replicated to all servers:
+
+- **Maps**: Map definitions, boundaries, and properties
+- **Items**: Item definitions and properties
+- **NPCs**: NPCs, dialogues, and behaviors
+- **Quests**: Quest definitions, requirements, and rewards
+- **Zones**: Zone configurations, boundaries, and properties
+- **Events**: Automatic event configurations
+- **Patrols**: Creature patrol routes
+- **Creatures**: Creature definitions and properties
+- **Respawns**: All respawn points (both creature and resource respawns) - each associated with a map
+
+**Map Management:** Each game server manages multiple maps. Maps must be registered in the admin dashboard and assigned to servers. Every respawn is associated with a specific map.
+
+**Server-Specific Data:** Each server maintains its own player data, rankings, auction house, houses, guilds, parties, and map instances (with players, creatures, events, etc.).
+
 ## Summary
 
-The administrative system provides comprehensive tools for managing all aspects of the game through a web-based interface, ensuring efficient operations, security, and zero data loss through robust backup systems.
+The administrative system provides comprehensive tools for managing all aspects of the game through a web-based interface, ensuring efficient operations, security, and zero data loss through robust backup systems. All content changes are automatically replicated to all game servers, ensuring identical world structure while maintaining independent player economies and communities per server.
 

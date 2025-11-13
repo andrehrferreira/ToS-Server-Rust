@@ -28,13 +28,15 @@ The Unified Configuration API is called whenever a server starts. It handles aut
 {
   "server_token": "server_auth_token_xyz",
   "config_data": {
+    "maps": [...],
     "items": [...],
     "npcs": [...],
     "quests": [...],
     "zones": [...],
     "events": [...],
     "patrols": [...],
-    "creatures": [...]
+    "creatures": [...],
+    "respawns": [...]
   },
   "timestamp": "2024-01-01T00:00:00Z"
 }
@@ -53,6 +55,7 @@ impl ConfigPreloadAPI {
         server_id: ServerId,
     ) -> Result<ConfigData, ApiError> {
         // Load all configuration data
+        let maps = self.load_maps().await?;
         let items = self.load_items().await?;
         let npcs = self.load_npcs().await?;
         let quests = self.load_quests().await?;
@@ -60,6 +63,7 @@ impl ConfigPreloadAPI {
         let events = self.load_events().await?;
         let patrols = self.load_patrols().await?;
         let creatures = self.load_creatures().await?;
+        let respawns = self.load_respawns().await?;
         
         // Generate server authentication token
         let server_token = self.generate_server_token(server_id).await?;
@@ -67,6 +71,7 @@ impl ConfigPreloadAPI {
         Ok(ConfigData {
             server_token,
             config_data: GameConfig {
+                maps,
                 items,
                 npcs,
                 quests,
@@ -74,6 +79,7 @@ impl ConfigPreloadAPI {
                 events,
                 patrols,
                 creatures,
+                respawns,
             },
             timestamp: Utc::now(),
         })
@@ -280,7 +286,97 @@ async fn replicate_item_to_servers(
 }
 ```
 
+### Map Configuration
+
+**Endpoint:** `POST /config/maps/update`
+
+**Purpose:** Update map configuration. Replicates to all servers.
+
+**Request:**
+```json
+{
+  "map_id": "map_001",
+  "updates": {
+    "name": "Forest of Shadows",
+    "boundaries": {
+      "min": {"x": 0, "y": 0, "z": 0},
+      "max": {"x": 10000, "y": 10000, "z": 1000}
+    },
+    "zones": [...],
+    "teleportation_points": [...],
+    "sacred_lands": [...]
+  }
+}
+```
+
+**Note:** Map definitions are replicated to all game servers. Each server manages multiple maps and maintains its own map instances.
+
+### Respawn Configuration
+
+**Endpoint:** `POST /config/respawns/update`
+
+**Purpose:** Update respawn configuration (both resource and creature respawns). Replicates to all servers.
+
+**Request:**
+```json
+{
+  "respawn_id": "respawn_001",
+  "respawn_type": "creature",
+  "map_id": "map_001",
+  "updates": {
+    "location": {"x": 1000, "y": 2000, "z": 500},
+    "creature_type": "Goblin",
+    "spawn_rate": 0.5,
+    "max_spawns": 10
+  }
+}
+```
+
+**Respawn Types:**
+- **Creature Respawns**: Spawn points for creatures
+- **Resource Respawns**: Spawn points for resources (ores, herbs, etc.)
+
+**Map Association:**
+- **Every respawn must be associated with a map**: The `map_id` field is required
+- Respawn locations are relative to the map coordinate system
+- Respawns are created within map boundaries
+
+**Note:** All respawns (both creature and resource) are replicated to all game servers, ensuring consistent world structure across all servers. Each respawn is tied to a specific map.
+
 ## Replication System
+
+### Replicated Content
+
+**All game servers share the same content structure:**
+
+The following content is replicated to all game servers, ensuring identical world structure:
+
+- **Maps**: Map definitions, boundaries, and properties
+- **Items**: All item definitions and properties
+- **NPCs**: All NPCs, dialogues, and behaviors
+- **Quests**: All quest definitions, requirements, and rewards
+- **Zones**: All zone configurations, boundaries, and properties
+- **Events**: All automatic event configurations
+- **Patrols**: All creature patrol routes
+- **Creatures**: All creature definitions and properties
+- **Respawns**: All respawn points (both creature and resource respawns) - each associated with a map
+
+**Map Management:** Each game server manages multiple maps. Maps are registered in the admin dashboard and assigned to servers. While map definitions are replicated, each server maintains its own map instances with server-specific data.
+
+**Server-Specific Data:**
+
+The following data is unique to each game server:
+
+- **Player Items**: Items owned by players (inventory, equipment, bank)
+- **Players**: Player characters and their data
+- **Rankings**: Server-specific player rankings
+- **Auction House**: Server-specific auction house listings
+- **Houses**: Player-owned houses and properties
+- **Guilds**: Server-specific guilds and their data
+- **Parties**: Active parties on the server
+- **Player Progress**: Quest progress, skill levels, etc.
+
+This separation ensures that all servers have identical world content while maintaining independent player economies and communities.
 
 ### Replication Process
 
@@ -319,10 +415,13 @@ pub struct ReplicationStatus {
 The Unified Configuration API provides:
 
 - **Server Startup Preload**: All configuration loaded on server start
-- **Content Creation**: Create items, NPCs, quests, etc. from dashboard
+- **Content Creation**: Create items, NPCs, quests, respawns, etc. from dashboard
 - **Content Updates**: Update existing content and replicate changes
-- **Replication**: All changes replicated to all game servers
+- **Replication**: All content changes replicated to all game servers
 - **Status Tracking**: Track replication success/failure
+- **Unified World Structure**: All servers share identical content structure
+
+**Key Principle:** All game servers have the same world structure (maps, items, NPCs, quests, zones, events, patrols, creatures, respawns). Each server manages multiple maps, and every respawn is associated with a specific map. What differs between servers is player-specific data (items owned by players, rankings, auction house, houses, guilds, parties) and server-specific map instances.
 
 This system ensures all game servers have consistent configuration data while allowing centralized management through the admin dashboard.
 

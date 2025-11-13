@@ -1055,6 +1055,12 @@ pub fn teleport_player(
 - 2-3 Sacred Lands (distributed across map)
 - 2 City Portals or Ancient Monoliths (key locations)
 
+## Related Documentation
+
+- [MAPS.md](./MAPS.md) - Map system documentation (teleports and waypoints are loaded per map)
+- [SACRED_LANDS.md](./SACRED_LANDS.md) - Sacred Lands system (Goddess Statue teleportation)
+- [ZONES.md](./ZONES.md) - Zone system documentation (teleports work across all zones)
+
 ## Summary
 
 The teleportation system:
@@ -1070,6 +1076,7 @@ The teleportation system:
 - Integrates with guild, economy, skill, event, and admin systems
 - **Mandatory Requirements**: Every map must have at least 1 Sacred Land and 1-2 teleportation points
 - **Admin Control**: Dynamic portals can be created and managed by administrators
+- **Map Loading**: Teleports and waypoints are loaded from map metadata files (see [MAPS.md](./MAPS.md))
 
 **Key Benefits:**
 - **Mobility**: Reduces travel time significantly

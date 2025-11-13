@@ -542,10 +542,14 @@ pub async fn trigger_heartbeat_update() {
 **Critical Requirement:**
 Players moving faster than allowed is unacceptable and must be detected immediately.
 
+**Lag Compensation Integration:**
+Speed hack detection integrates with the lag compensation system (see [LAG_COMPENSATION.md](./LAG_COMPENSATION.md)) to prevent false positives due to high latency. All movement validation applies lag compensation before checking speed limits.
+
 **Implementation:**
 ```rust
 pub struct SpeedHackDetector {
     max_speed: f32, // Maximum allowed speed
+    lag_compensation: Arc<LagCompensationSystem>, // Lag compensation system
     speed_history: Arc<RwLock<HashMap<CharacterId, Vec<SpeedRecord>>>>,
 }
 
@@ -562,22 +566,60 @@ impl SpeedHackDetector {
         new_position: Position,
         timestamp: Instant,
     ) -> Result<(), SpeedHackViolation> {
+        // First, validate with lag compensation
+        // This prevents false positives from high latency players
+        let validated_position = match self.lag_compensation.validate_movement(
+            player_id,
+            new_position,
+            timestamp.into(),
+        ).await {
+            Ok(pos) => pos,
+            Err(MovementError::SpeedViolation { distance_moved, max_allowed_distance, .. }) => {
+                // Movement exceeds maximum even with lag compensation
+                // This is a real speed hack violation
+                let time_delta = if let Some(last_record) = self.speed_history.read().await.get(&player_id)
+                    .and_then(|h| h.last()) {
+                    timestamp.duration_since(last_record.timestamp).as_secs_f32()
+                } else {
+                    0.1 // Default time delta
+                };
+                
+                let speed = distance_moved / time_delta;
+                
+                let violation = SpeedHackViolation {
+                    player_id,
+                    detected_speed: speed,
+                    max_allowed_speed: self.max_speed,
+                    position: new_position,
+                    timestamp,
+                };
+                
+                self.handle_speed_hack(violation).await;
+                return Err(violation);
+            }
+            Err(_) => {
+                // Other errors, use original position
+                new_position
+            }
+        };
+        
+        // Continue with speed validation using compensated position
         let mut history = self.speed_history.write().await;
         let player_history = history.entry(player_id).or_insert_with(Vec::new);
         
         if let Some(last_record) = player_history.last() {
-            let distance = new_position.distance(last_record.position);
+            let distance = validated_position.distance(last_record.position);
             let time_delta = timestamp.duration_since(last_record.timestamp);
             let speed = distance / time_delta.as_secs_f32();
             
-            // Check against maximum speed
+            // Check against maximum speed (already compensated for latency)
             if speed > self.max_speed {
                 // Speed hack detected!
                 let violation = SpeedHackViolation {
                     player_id,
                     detected_speed: speed,
                     max_allowed_speed: self.max_speed,
-                    position: new_position,
+                    position: validated_position,
                     timestamp,
                 };
                 
@@ -588,11 +630,17 @@ impl SpeedHackDetector {
             }
         }
         
-        // Record valid movement
+        // Record valid movement (using compensated position)
         player_history.push(SpeedRecord {
-            position: new_position,
+            position: validated_position,
             timestamp,
-            calculated_speed: 0.0, // Will be calculated next time
+            calculated_speed: if let Some(last_record) = player_history.last() {
+                let distance = validated_position.distance(last_record.position);
+                let time_delta = timestamp.duration_since(last_record.timestamp);
+                distance / time_delta.as_secs_f32()
+            } else {
+                0.0
+            },
         });
         
         // Keep only recent history (last 10 seconds)
@@ -632,6 +680,14 @@ impl SpeedHackDetector {
     }
 }
 ```
+
+**Detection Features:**
+- **Lag Compensation**: Integrates with lag compensation system to prevent false positives (see [LAG_COMPENSATION.md](./LAG_COMPENSATION.md))
+- **Real-Time Monitoring**: Validates every movement update
+- **Speed Calculation**: Calculates speed from position changes (with latency compensation applied)
+- **Threshold Detection**: Detects speeds exceeding maximum (even with compensation)
+- **False Positive Prevention**: High latency players don't trigger false detections
+- **Immediate Response**: Kicks and bans detected speed hackers
 
 ### Wallhack Detection
 
@@ -707,12 +763,21 @@ impl WallhackDetector {
 **Critical Requirement:**
 Players flying or moving in impossible ways is unacceptable.
 
+**Heightmap Integration:**
+Flyhack detection uses the map heightmap system (see [MAPS.md](./MAPS.md)) to validate player positions against actual terrain heights. The heightmap provides accurate ground level data for each X,Y position, including support for multi-level structures (bridges, platforms).
+
 **Implementation:**
 ```rust
 pub struct FlyhackDetector {
     max_jump_height: f32,
-    ground_level: HashMap<MapId, f32>,
+    max_fall_speed: f32,
+    max_vertical_speed: f32,
+    infinite_fall_threshold: f32,        // Height threshold for infinite fall detection
+    infinite_fall_duration: Duration,    // Duration threshold for infinite fall
+    heightmaps: Arc<RwLock<HashMap<MapId, Heightmap>>>,
     player_positions: Arc<RwLock<HashMap<CharacterId, Vec<Position>>>>,
+    valid_position_history: Arc<RwLock<HashMap<CharacterId, Vec<ValidPosition>>>>, // History of valid positions
+    falling_states: Arc<RwLock<HashMap<CharacterId, FallingState>>>, // Track falling state per player
 }
 
 impl FlyhackDetector {
@@ -722,12 +787,48 @@ impl FlyhackDetector {
         position: Position,
         map_id: MapId,
     ) -> Result<(), FlyhackViolation> {
-        let ground_level = self.ground_level.get(&map_id)
-            .copied()
-            .unwrap_or(0.0);
+        // Get heightmap for this map
+        let heightmaps = self.heightmaps.read().await;
+        let heightmap = heightmaps.get(&map_id)
+            .ok_or_else(|| FlyhackViolation {
+                player_id,
+                position,
+                map_id,
+                height_above_ground: 0.0,
+                nearest_ground: None,
+                max_allowed_height: self.max_jump_height,
+                violation_type: ViolationType::NoHeightmap,
+                timestamp: Utc::now(),
+            })?;
+        
+        // Query heightmap for ground level at player's X,Y position
+        let ground_heights = heightmap.get_heights_at(position.x, position.y);
+        
+        if ground_heights.is_empty() {
+            // No ground data at this position - check if player is in valid bounds
+            if !heightmap.is_in_bounds(position.x, position.y) {
+                let violation = FlyhackViolation {
+                    player_id,
+                    position,
+                    map_id,
+                    height_above_ground: f32::MAX,
+                    nearest_ground: None,
+                    max_allowed_height: self.max_jump_height,
+                    violation_type: ViolationType::OutOfBounds,
+                    timestamp: Utc::now(),
+                };
+                self.handle_flyhack(violation).await;
+                return Err(violation);
+            }
+            // Position might be valid but no ground data - allow with warning
+            return Ok(());
+        }
+        
+        // Find nearest valid ground level (can be above or below player)
+        let nearest_ground = self.find_nearest_ground(position.z, &ground_heights);
         
         // Check if player is too high above ground
-        let height_above_ground = position.z - ground_level;
+        let height_above_ground = position.z - nearest_ground;
         
         if height_above_ground > self.max_jump_height {
             // Player is flying!
@@ -736,7 +837,9 @@ impl FlyhackDetector {
                 position,
                 map_id,
                 height_above_ground,
+                nearest_ground: Some(nearest_ground),
                 max_allowed_height: self.max_jump_height,
+                violation_type: ViolationType::TooHigh,
                 timestamp: Utc::now(),
             };
             
@@ -746,36 +849,206 @@ impl FlyhackDetector {
             return Err(violation);
         }
         
+        // Check if player is below ground (falling through terrain)
+        if position.z < nearest_ground - 10.0 { // 10 unit tolerance for ground penetration
+            let violation = FlyhackViolation {
+                player_id,
+                position,
+                map_id,
+                height_above_ground: position.z - nearest_ground,
+                nearest_ground: Some(nearest_ground),
+                max_allowed_height: self.max_jump_height,
+                violation_type: ViolationType::BelowGround,
+                timestamp: Utc::now(),
+            };
+            
+            self.handle_flyhack(violation).await;
+            return Err(violation);
+        }
+        
         // Check vertical movement speed
         let mut positions = self.player_positions.write().await;
         let player_history = positions.entry(player_id).or_insert_with(Vec::new);
         
+        let mut falling_states = self.falling_states.write().await;
+        let falling_state = falling_states.entry(player_id).or_insert_with(|| FallingState {
+            start_time: Utc::now(),
+            start_height: position.z,
+            consecutive_falls: 0,
+        });
+        
         if let Some(last_pos) = player_history.last() {
-            let vertical_speed = (position.z - last_pos.z).abs() / 0.1; // Assuming 100ms between updates
+            let time_delta = 0.1; // Assuming 100ms between updates
+            let vertical_distance = (position.z - last_pos.z).abs();
+            let vertical_speed = vertical_distance / time_delta;
             
-            if vertical_speed > 50.0 { // Max vertical speed
+            // Check upward movement (jumping/flying)
+            if position.z > last_pos.z && vertical_speed > self.max_vertical_speed {
+                // Reset falling state on upward movement
+                falling_state.consecutive_falls = 0;
+                falling_state.start_time = Utc::now();
+                falling_state.start_height = position.z;
+                
                 let violation = FlyhackViolation {
                     player_id,
                     position,
                     map_id,
                     height_above_ground,
+                    nearest_ground: Some(nearest_ground),
                     max_allowed_height: self.max_jump_height,
+                    violation_type: ViolationType::ExcessiveVerticalSpeed,
                     timestamp: Utc::now(),
                 };
                 
                 self.handle_flyhack(violation).await;
                 return Err(violation);
             }
+            
+            // Check downward movement (falling)
+            if position.z < last_pos.z {
+                let fall_speed = vertical_distance / time_delta;
+                
+                // Check for excessive fall speed
+                if fall_speed > self.max_fall_speed {
+                    falling_state.consecutive_falls = 0;
+                    falling_state.start_time = Utc::now();
+                    falling_state.start_height = position.z;
+                    
+                    let violation = FlyhackViolation {
+                        player_id,
+                        position,
+                        map_id,
+                        height_above_ground,
+                        nearest_ground: Some(nearest_ground),
+                        max_allowed_height: self.max_jump_height,
+                        violation_type: ViolationType::ExcessiveFallSpeed,
+                        timestamp: Utc::now(),
+                    };
+                    
+                    self.handle_flyhack(violation).await;
+                    return Err(violation);
+                }
+                
+                // Track consecutive falls (infinite fall detection)
+                falling_state.consecutive_falls += 1;
+                let fall_duration = Utc::now().signed_duration_since(falling_state.start_time);
+                let height_fallen = falling_state.start_height - position.z;
+                
+                // Check for infinite fall: continuous falling for too long or too far
+                if falling_state.consecutive_falls >= 10 && // At least 10 consecutive fall updates
+                   (fall_duration.num_seconds() >= self.infinite_fall_duration.num_seconds() ||
+                    height_fallen > self.infinite_fall_threshold) {
+                    
+                    // Get last valid position from history
+                    let mut valid_history = self.valid_position_history.write().await;
+                    let player_valid_history = valid_history.entry(player_id).or_insert_with(Vec::new);
+                    
+                    if let Some(last_valid) = player_valid_history.last() {
+                        // Teleport player back to last valid position
+                        self.correct_infinite_fall(
+                            player_id,
+                            position,
+                            last_valid.position,
+                            map_id,
+                            height_fallen,
+                            fall_duration,
+                        ).await;
+                        
+                        // Reset falling state
+                        falling_state.consecutive_falls = 0;
+                        falling_state.start_time = Utc::now();
+                        falling_state.start_height = last_valid.position.z;
+                        
+                        return Ok(()); // Position corrected, allow
+                    } else {
+                        // No valid history, use current position as fallback
+                        falling_state.consecutive_falls = 0;
+                        falling_state.start_time = Utc::now();
+                        falling_state.start_height = position.z;
+                    }
+                }
+            } else {
+                // Not falling, reset falling state
+                falling_state.consecutive_falls = 0;
+                falling_state.start_time = Utc::now();
+                falling_state.start_height = position.z;
+            }
         }
         
-        // Record valid position
+        // Position is valid - record it
         player_history.push(position);
-        player_history.retain(|pos| {
-            // Keep only recent positions
-            true // Simplified
-        });
+        if player_history.len() > 100 {
+            player_history.remove(0); // Keep only last 100 positions
+        }
+        
+        // Record valid position in history (only if on ground or reasonable height)
+        if height_above_ground <= self.max_jump_height {
+            let mut valid_history = self.valid_position_history.write().await;
+            let player_valid_history = valid_history.entry(player_id).or_insert_with(Vec::new);
+            
+            player_valid_history.push(ValidPosition {
+                position,
+                timestamp: Utc::now(),
+                height_above_ground,
+            });
+            
+            // Keep only last 50 valid positions
+            if player_valid_history.len() > 50 {
+                player_valid_history.remove(0);
+            }
+        }
         
         Ok(())
+    }
+    
+    async fn correct_infinite_fall(
+        &self,
+        player_id: CharacterId,
+        current_position: Position,
+        valid_position: Position,
+        map_id: MapId,
+        height_fallen: f32,
+        fall_duration: Duration,
+    ) {
+        // Log the correction (this is NOT a violation, just a bug correction)
+        info!(
+            "Infinite fall detected for player {}: fell {:.2} units over {:?}, correcting to last valid position",
+            player_id, height_fallen, fall_duration
+        );
+        
+        // Teleport player to last valid position
+        teleport_player(player_id, valid_position, map_id).await;
+        
+        // Notify player
+        notify_player(
+            player_id,
+            "You were falling into a void. You have been returned to safety. Use /unstuck if you get stuck again.",
+        ).await;
+        
+        // Log correction (non-violation, just bug correction)
+        // This is logged for debugging purposes, not as a security incident
+        log_position_correction(PositionCorrection {
+            player_id,
+            correction_type: CorrectionType::InfiniteFall,
+            current_position,
+            corrected_position: valid_position,
+            height_fallen,
+            fall_duration_seconds: fall_duration.num_seconds(),
+            timestamp: Utc::now(),
+        }).await;
+    }
+    
+    fn find_nearest_ground(&self, player_z: f32, ground_heights: &[f32]) -> f32 {
+        // Find the ground height closest to player's Z position
+        // This handles multi-level structures (bridges, platforms)
+        ground_heights.iter()
+            .min_by(|a, b| {
+                let dist_a = (player_z - **a).abs();
+                let dist_b = (player_z - **b).abs();
+                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .copied()
+            .unwrap_or(player_z)
     }
     
     async fn handle_flyhack(&self, violation: FlyhackViolation) {
@@ -786,15 +1059,17 @@ impl FlyhackDetector {
         ban_player_temporary(
             violation.player_id,
             Duration::hours(24),
-            "Flyhack detected",
+            &format!("Flyhack detected: {:?}", violation.violation_type),
         ).await;
         
         // Notify administrators
         notify_administrators(&format!(
-            "Flyhack detected: Player {} at height {:.2} (max: {:.2})",
+            "Flyhack detected: Player {} - Type: {:?}, Height: {:.2} (max: {:.2}), Ground: {:?}",
             violation.player_id,
+            violation.violation_type,
             violation.height_above_ground,
-            violation.max_allowed_height
+            violation.max_allowed_height,
+            violation.nearest_ground
         )).await;
         
         // Log incident
@@ -806,7 +1081,123 @@ impl FlyhackDetector {
         }).await;
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlyhackViolation {
+    pub player_id: CharacterId,
+    pub position: Position,
+    pub map_id: MapId,
+    pub height_above_ground: f32,
+    pub nearest_ground: Option<f32>,
+    pub max_allowed_height: f32,
+    pub violation_type: ViolationType,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ViolationType {
+    TooHigh,                    // Player too high above ground
+    BelowGround,                 // Player below ground level
+    ExcessiveVerticalSpeed,      // Moving up too fast
+    ExcessiveFallSpeed,          // Falling too fast
+    OutOfBounds,                 // Position outside map bounds
+    NoHeightmap,                 // No heightmap data for map
+    // Note: Infinite fall is NOT a violation - it's a known game bug that gets auto-corrected
+}
+
+#[derive(Debug, Clone)]
+pub struct ValidPosition {
+    pub position: Position,
+    pub timestamp: DateTime<Utc>,
+    pub height_above_ground: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct FallingState {
+    pub start_time: DateTime<Utc>,
+    pub start_height: f32,
+    pub consecutive_falls: u32,
+}
+
+// Position correction (non-violation, just bug correction)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PositionCorrection {
+    pub player_id: CharacterId,
+    pub correction_type: CorrectionType,
+    pub current_position: Position,
+    pub corrected_position: Position,
+    pub height_fallen: f32,
+    pub fall_duration_seconds: i64,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CorrectionType {
+    InfiniteFall,  // Player falling infinitely (common bug, auto-corrected)
+}
+
+// Heightmap structure (loaded from JSON)
+pub struct Heightmap {
+    bounds: BoundingBox,
+    height_grid: HashMap<(i32, i32), Vec<i32>>, // (X, Y) -> Vec<Z heights>
+    resolution: i32,
+}
+
+impl Heightmap {
+    pub fn get_heights_at(&self, x: f32, y: f32) -> Vec<f32> {
+        // Round to grid coordinates
+        let grid_x = (x / self.resolution as f32).round() as i32 * self.resolution;
+        let grid_y = (y / self.resolution as f32).round() as i32 * self.resolution;
+        
+        self.height_grid
+            .get(&(grid_x, grid_y))
+            .map(|heights| heights.iter().map(|&z| z as f32).collect())
+            .unwrap_or_default()
+    }
+    
+    pub fn is_in_bounds(&self, x: f32, y: f32) -> bool {
+        self.bounds.contains_point(Vector2::new(x, y))
+    }
+}
 ```
+
+**Heightmap Loading:**
+Heightmaps are loaded from JSON files exported by Unreal Engine's `NavMeshExporter`:
+- **File Format**: JSON with compact structure
+- **File Location**: `Metadata/Scenes/{MapName}_Heightmap.json`
+- **Loading**: Loaded at map initialization, cached in memory for fast queries
+- **Multi-Level Support**: Handles multiple Z heights per X,Y position (bridges, platforms)
+
+**Detection Features:**
+- **Height Validation**: Validates player Z position against terrain height from heightmap
+- **Multi-Level Support**: Handles multi-level structures (bridges, platforms)
+- **Vertical Speed**: Detects excessive upward or downward movement speed
+- **Ground Penetration**: Detects players falling through terrain
+- **Out of Bounds**: Detects players outside map boundaries
+- **Infinite Fall Detection**: Detects and corrects infinite falling (common bug mitigation, NOT a violation)
+- **Valid Position History**: Maintains history of valid positions for fall correction
+- **Automatic Correction**: Teleports players back to last valid position when infinite fall detected
+- **Manual Alternative**: Players can use `/unstuck` command if they get stuck (see [ADMIN_COMMANDS.md](./ADMIN_COMMANDS.md))
+- **Real-Time**: Validates every position update from client
+
+**Infinite Fall Mitigation:**
+The system includes special handling for a common bug where players fall into holes or voids and fall infinitely. **This is NOT a violation** - it's a known game bug that gets automatically corrected:
+- **Not a Security Violation**: Infinite fall is a common game bug, not a hack or exploit
+- **No Kick/Ban**: Players are NOT kicked or banned for falling infinitely
+- **Automatic Correction Only**: System automatically corrects the issue without penalty
+- **Valid Position Tracking**: System maintains a history of valid positions (on ground or reasonable height)
+- **Fall Detection**: Tracks consecutive fall updates and fall duration
+- **Threshold Detection**: Detects infinite fall when:
+  - Player has 10+ consecutive fall updates, AND
+  - Fall duration exceeds threshold (e.g., 3 seconds), OR
+  - Height fallen exceeds threshold (e.g., 500 units)
+- **Automatic Correction**: When infinite fall detected:
+  - Player is teleported to last valid position
+  - Player receives notification about the correction
+  - Correction is logged for debugging (not as security incident)
+  - Falling state is reset
+- **Manual Alternative**: Players can use `/unstuck` command to manually teleport to safe location if needed
+- **Graceful Handling**: System prevents player frustration from map bugs while maintaining security
 
 ## DDoS Protection
 

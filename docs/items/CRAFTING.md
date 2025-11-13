@@ -4,7 +4,7 @@
 
 The crafting system allows players to create equipment and items using resources and crafting skills. The system is inspired by Ultima Online, where the same item can be crafted using different resources of varying quality. Higher quality resources increase skill requirements and XP gain, while also improving the chances of creating higher rarity items.
 
-**Note:** Crafting never fails - players can always create items if they have the required resources. However, skill level and resource quality determine the final item quality and rarity.
+**Note:** Crafting never fails - players can always create items if they have the required resources. However, skill level and resource quality determine the final item quality and rarity. Lower skill levels result in common quality items, while higher skill levels increase the chances of creating higher rarity items.
 
 ## Key Features
 
@@ -105,14 +105,16 @@ Heavenly Sword:
 
 ### Basic Crafting Flow
 
-1. **Select Recipe**: Player selects item recipe
+1. **Select Recipe**: Player selects item recipe (optionally with variant resource)
 2. **Check Resources**: System checks if player has required resources
-3. **Check Skill**: System checks if player meets skill requirement
-4. **Pay Gold**: Player pays crafting gold cost
-5. **Use Tool**: Player uses crafting tool (optional, specialized tools cost more)
-6. **Create Item**: Item is created (never fails)
-7. **Determine Quality**: System determines item rarity based on skill and resources
-8. **Grant XP**: Player receives XP based on skill requirement and resource quality
+3. **Check Skill**: System checks if player meets skill requirement (base or variant)
+4. **Pay Gold**: Player pays crafting gold cost (base or variant-adjusted)
+5. **Consume Resources**: Resources are consumed immediately
+6. **Create Item**: Item is always created (never fails)
+7. **Determine Quality**: System determines item quality/rarity based on skill level
+8. **Apply Bonuses**: Quality bonuses, variant bonuses, and random bonuses are applied
+9. **Grant XP**: Player receives XP based on skill requirement and resource quality
+10. **Track Creator**: Item stores creator name (`CraftBy` property)
 
 ### Crafting Requirements
 
@@ -122,19 +124,92 @@ Heavenly Sword:
 - Resources are listed in item recipe
 
 **Skill Requirements:**
-- Player must meet minimum skill requirement
-- Below minimum: Item is always Common
-- At or above minimum: Item can be higher rarity
+- Player must meet minimum skill requirement (base recipe or variant)
+- Below minimum: Item is always Common quality
+- At or above minimum: Item can be higher rarity (quality chance increases with skill)
+- Skill level affects quality determination, not success chance
 
 **Gold Requirements:**
 - All crafting requires gold payment
-- Gold cost varies by item type and tier
+- Base gold cost: `(ItemPrice * 0.5) * Amount`
+- Variant gold cost: `((ItemPrice * 0.5) * variantIndex) * Amount` (when using variant resources)
 - Gold is consumed on crafting
 
 **Tool Requirements:**
 - Basic tools: Standard crafting (lower costs)
 - Specialized tools: Better rarity chances (higher costs)
 - Tools have durability/usage costs
+
+## Quality Chance System
+
+### Quality Chance Calculation
+
+**Note:** Crafting never fails. This system determines item quality, not success.
+
+**Quality Determination:**
+- Below minimum skill: Item is always Common quality
+- At or above minimum skill: Quality chance increases with skill level
+- Higher skill = better chances for higher quality items
+- Quality is determined after item creation
+
+**Quality Roll:**
+- Only occurs if player skill meets minimum requirement
+- If skill < minimum: Item is Common (no roll)
+- If skill >= minimum: Quality roll occurs based on skill level
+
+## Variant System
+
+### Variant Resources
+
+**Variant Concept:**
+- Some recipes support variant resources
+- Variant resources are marked with `Variant = true` in recipe
+- Variants allow using different resource types for same recipe
+- Variants have their own skill requirements and bonuses
+
+**Variant Properties:**
+- `ItemName`: Name of variant resource
+- `MinSkill`: Minimum skill required for variant
+- `MaxSkillGain`: Maximum skill level that can gain XP from variant
+- `Variant`: Amplification value (affects bonuses)
+
+**Variant Detection:**
+- System checks if recipe has variant resources
+- If variant resource is used, variant data is applied
+- Variant affects: skill requirement, gold cost, item bonuses, XP gain
+
+**Variant Gold Cost:**
+- Base cost: `(ItemPrice * 0.5) * Amount`
+- Variant cost: `((ItemPrice * 0.5) * variantIndex) * Amount`
+- `variantIndex` is position of variant in variants array + 1
+- Higher variant index = higher gold cost
+
+**Variant Bonuses:**
+- Variants apply additional bonuses to crafted items
+- Bonuses scale with variant's `Variant` value
+- Affects: durability, resistances, damage, requirements, regen stats
+- See "Variant Bonus System" section for details
+
+### Variant Example
+
+**Recipe with Variant:**
+```
+Iron Sword Recipe:
+- Base Resource: Iron Ingot (Variant = false)
+- Variant Resource: Steel Ingot (Variant = true)
+- Variant Data:
+  - ItemName: "SteelIngot"
+  - MinSkill: 15
+  - MaxSkillGain: 25
+  - Variant: 1.5
+```
+
+**Crafting with Variant:**
+- Player uses Steel Ingot instead of Iron Ingot
+- Skill requirement: 15 (variant's MinSkill)
+- Gold cost: Increased based on variant index
+- Item receives variant bonuses (durability, damage, etc.)
+- XP gain: Based on variant's MaxSkillGain
 
 ## Quality and Rarity System
 
@@ -194,6 +269,149 @@ Heavenly Sword:
 - Legendary: 5%
 
 **Note:** Even with maximum skill, high quality resources, and specialized tools, rarity is still RNG-based (lottery system).
+
+### Quality Bonuses
+
+**Quality Determination:**
+- Quality is determined after item creation
+- Quality affects item stats and bonuses
+- Below minimum skill: Item is always Common
+- At or above minimum skill: Quality roll occurs
+
+**Quality Roll (when skill >= minimum requirement):**
+- Random roll: 0-100
+- Quality chances improve with higher skill levels
+- Base chances (at minimum skill):
+  - 0-10: Uncommon (10% chance)
+  - 10-15: Rare (5% chance)
+  - 15-19: Epic (4% chance)
+  - 19-20: Legendary (1% chance)
+  - 20-100: Common (80% chance)
+- Higher skill levels improve these chances (see Rarity Chances section)
+
+**Uncommon Quality Bonuses:**
+- Equipment/Tools: +50 durability and max durability
+- Armor: +1 to all resistances
+- Weapons: +1 damage
+- Shields: +1 to all resistances
+- Receives 1 random bonus attribute
+
+**Rare Quality Bonuses:**
+- Equipment/Tools: +100 durability and max durability
+- Armor: +2 to all resistances
+- Weapons: +2 damage
+- Shields: +2 to all resistances
+- Receives 2 random bonus attributes
+
+**Epic Quality Bonuses:**
+- Equipment/Tools: +150 durability and max durability
+- Armor: +3 to all resistances
+- Weapons: +3 damage
+- Shields: +3 to all resistances
+- Receives 3 random bonus attributes
+
+**Legendary Quality Bonuses:**
+- Equipment/Tools: +200 durability and max durability
+- Armor: +4 to all resistances
+- Weapons: +4 damage
+- Shields: +4 to all resistances
+- Receives 4 random bonus attributes
+
+### Variant Bonus System
+
+**Variant Bonuses Applied:**
+- Variants add bonuses based on `Variant` value
+- Bonuses are multiplicative and additive
+
+**Equipment Bonuses (all equipment types):**
+- Durability: `(10 + (BaseDurability * Variant)) * 2`
+- Required Strength: `+5 + (Variant * 2)` (if > 0)
+- Required Dexterity: `+5 + (Variant * 2)` (if > 0)
+- Required Intelligence: `+5 + (Variant * 2)` (if > 0)
+- Health Regen: `(BaseRegen * (Variant + 1)) + 1` (if > 0)
+- Mana Regen: `(BaseRegen * (Variant + 1)) + 1` (if > 0)
+- Stamina Regen: `(BaseRegen * (Variant + 1)) + 1` (if > 0)
+
+**Armor Bonuses:**
+- ColorName: Set to variant resource's Hue
+- Physical Resistance: `BaseResistance * (Variant + 1)`
+- Cold Resistance: `BaseResistance * (Variant + 1)`
+- Fire Resistance: `BaseResistance * (Variant + 1)`
+- Lightning Resistance: `BaseResistance * (Variant + 1)`
+- Darkness Resistance: `BaseResistance * (Variant + 1)`
+- Plus quality-based resistance bonuses (see Quality Bonuses)
+
+**Weapon Bonuses:**
+- Durability: `(10 + (BaseDurability * Variant)) * 2`
+- ColorName: Set to variant resource's Hue
+- Damage: `(BaseDamage * (Variant + 1)) + (1 * Variant)`
+- Plus quality-based damage bonuses (see Quality Bonuses)
+
+**Shield Bonuses:**
+- ColorName: Set to variant resource's Hue
+- Physical Resistance: `BaseResistance * (Variant + 1)`
+- Cold Resistance: `BaseResistance * (Variant + 1)`
+- Fire Resistance: `BaseResistance * (Variant + 1)`
+- Lightning Resistance: `BaseResistance * (Variant + 1)`
+- Darkness Resistance: `BaseResistance * (Variant + 1)`
+- Plus quality-based resistance bonuses (see Quality Bonuses)
+
+**Variant Skill XP Bonus:**
+- If item is Armor, Weapon, or OffHand with variant:
+- Skill XP Bonus: `3 * Variant` per item crafted
+- Added to base XP gain
+
+### Random Bonus System
+
+**Random Bonus Attributes:**
+- Applied based on item quality
+- Uncommon: 1 random bonus
+- Rare: 2 random bonuses
+- Epic: 3 random bonuses
+- Legendary: 4 random bonuses
+
+**Armor Random Bonuses:**
+- HealthRegen, StaminaRegen, ManaRegen
+- BonusStr, BonusDex, BonusInt
+- BonusLife, BonusStam, BonusMana
+- LowerManaCost, ReflectPhysical, ReflectSpell
+- Luck, IncreasedKarmaLoss
+
+**Weapon Random Bonuses:**
+- HealthRegen, StaminaRegen, ManaRegen
+- BonusDamage, SpellDamage, BonusSpeed
+- BonusStr, BonusDex, BonusInt
+- BonusLife, BonusStam, BonusMana
+- CastSpeed, LowerManaCost
+- Luck, IncreasedKarmaLoss, SpellChanneling
+
+**Random Bonus Values:**
+- Uncommon: 1-4 (random)
+- Rare: 2-5 (random)
+- Epic: 3-6 (random)
+- Legendary: 4-7 (random)
+
+**Special Bonuses:**
+- Luck: Value * 10
+- IncreasedKarmaLoss: Value * 10
+- SpellChanneling: Boolean (true/false)
+
+### ColorName/Hue System
+
+**Base Hue:**
+- If recipe has variant resource with `Variant = true`:
+- Base hue is extracted from variant resource's `Hue` property
+- Applied to Armor, Weapon, and OffHand items
+
+**Variant Hue:**
+- If variant resource is used:
+- ColorName is set to variant resource's Hue
+- Overrides base hue
+
+**Non-Variant Items:**
+- If no variant resource:
+- ColorName set to baseHue (from variant resource if exists)
+- Otherwise uses default item color
 
 ## Resource System
 

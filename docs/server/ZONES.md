@@ -929,6 +929,12 @@ pub fn guard_ai_system(
 - Resistance penalty balance (0% to 50%)
 - Equipment requirements per zone type
 
+## Related Documentation
+
+- [MAPS.md](./MAPS.md) - Map system documentation (zones are loaded per map)
+- [SACRED_LANDS.md](./SACRED_LANDS.md) - Sacred Lands system (safe zones within maps)
+- [TELEPORTATION.md](./TELEPORTATION.md) - Teleportation system (teleports within zones)
+
 ## Summary
 
 The zone system:
@@ -945,6 +951,7 @@ The zone system:
 - Offers item protection systems for high-risk zones
 - Supports event zones with custom rules
 - Encourages resistance equipment investment through zone penalties
+- **Map Integration**: Each map typically has one primary zone (see [MAPS.md](./MAPS.md))
 
 **Key Protection Rules:**
 - **Equipped Items**: Always protected, never lost

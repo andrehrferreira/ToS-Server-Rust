@@ -659,6 +659,12 @@ pub fn handle_teleportation_request(
 - Strategic placement for accessibility
 - Balanced distribution for player convenience
 
+## Related Documentation
+
+- [MAPS.md](./MAPS.md) - Map system documentation (Sacred Lands are loaded per map)
+- [ZONES.md](./ZONES.md) - Zone system documentation (Sacred Lands work across all zone types)
+- [TELEPORTATION.md](./TELEPORTATION.md) - Teleportation system (Goddess Statue teleportation)
+
 ## Summary
 
 The Sacred Lands system:
@@ -673,6 +679,7 @@ The Sacred Lands system:
 - Integrates seamlessly with the zone system
 - Works across all zone types (Blue, Yellow, Red, Black, Event)
 - **Map Infrastructure**: Works together with teleportation points (1-2 per map) to ensure player mobility
+- **Map Loading**: Sacred Lands are loaded from map metadata files (see [MAPS.md](./MAPS.md))
 
 **Key Benefits:**
 - **Safety**: Complete protection from all attacks
