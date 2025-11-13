@@ -1139,7 +1139,101 @@ impl Map {
 - Many entities handling
 - Network update performance
 
+## TypeScript Implementation
+
+### Maps Class Structure
+
+```typescript
+class Maps extends LinkedList<Maps> {
+    public static maps: Map<string, Maps>
+    public static deltaTime: number = 0.3
+    public static foliageInitialData: Map<string, string>
+    
+    public id: string
+    public namespace: string
+    public mapTick: number
+    public mapIndex: number = 20
+    public entitiesIndexById: Map<string, Entity>
+    public entitiesMapIndex: Map<string, Entity>
+    public entitiesPersistedId: number = 1
+    public respawns: Map<string, Respawn>
+    public foliageIndex: Map<number, string>
+    public foliage: Map<string, Gatherable>
+}
+```
+
+### Entity Management
+
+**Dual Index System:**
+- **entitiesIndexById**: Indexed by entity.id (GUID) for fast lookup
+- **entitiesMapIndex**: Indexed by mapIndex (short ID) for network efficiency
+
+**Join Map Process:**
+1. Check for duplicate entity (same ID)
+2. Remove old entity if found (disconnect, save, destroy)
+3. Generate new mapIndex (starts at 20, increments)
+4. Set entity map and mapIndex
+5. Add to both indices
+6. Update area of interest
+7. Validate and clean indices
+
+**Index Validation:**
+- Detects duplicate characterIds
+- Removes disconnected duplicates
+- Keeps connected entity
+- Cleans up invalid references
+
+### Foliage System
+
+**parseLevelData:**
+- Parses index (mesh ID to name mapping)
+- Parses data (gatherable positions)
+- Format: `index@data` where index is `id:mesh|id:mesh|...` and data is `meshIndex,type,x,y,z|...`
+- Creates Gatherable instances
+- Stores by location and meshIndex
+- Refreshes initial data for client loading
+
+**refreshMapInitialData:**
+- Generates initial data string: `locRef,foliageId,enable,tick|...`
+- Stores in static map for client loading
+- Updated when foliage is collected
+
+### Tick System
+
+**Map Tick:**
+- Called every deltaTime (300ms)
+- Increments mapTick
+- Updates all entities (Players, Creatures, Others)
+
+**Respawn Tick:**
+- Called every 60 seconds
+- Ticks all respawns
+- Ticks all foliage
+- Handles respawn timers
+
+### Respawn Integration
+
+**getRespawns:**
+- Loads respawns from database
+- Creates Respawn instances
+- Sets timer based on entity type (Boss: 86400s, Others: 300s)
+- Stores in respawns map
+
+**createRespawn:**
+- Creates new respawn point
+- Saves to database
+- Creates Respawn instance
+- Timer based on entity type
+
+**removeRespawn:**
+- Destroys respawn
+- Removes from database
+- Destroys spawned entity
+- Removes from respawns map
+
 ## Summary
 
 Maps are the core units of the game world, loaded from the central API and managing all entities, systems, and gameplay mechanics within their boundaries. Each map handles players, creatures, NPCs, zones, Sacred Lands, teleportation points, resource gathering spots, respawns, and dynamic portals. The system uses a grid-based spatial optimization for efficient entity queries and runs a dedicated game loop per map with async loading capabilities. Maps ensure consistent world structure across all game servers while maintaining server-specific entity instances and player data.
+
+The TypeScript implementation uses a dual-index system for efficient entity lookup, manages respawns and foliage through tick-based systems, and integrates with the database for persistence. Entity management includes duplicate detection, index validation, and efficient cleanup operations.
 

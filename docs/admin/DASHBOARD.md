@@ -53,7 +53,7 @@ See [INTERACTIVE_MAP.md](./INTERACTIVE_MAP.md) for details.
 - Assign tickets to admins
 - Track ticket history
 
-See [SUPPORT_SYSTEM.md](./SUPPORT_SYSTEM.md) for details.
+See [SUPPORT.md](./SUPPORT.md) for details.
 
 ### Reward System
 
@@ -61,7 +61,7 @@ See [SUPPORT_SYSTEM.md](./SUPPORT_SYSTEM.md) for details.
 - Schedule automatic rewards
 - Distribute rewards to players
 
-See [REWARD_SYSTEM.md](./REWARD_SYSTEM.md) for details.
+See [REWARD.md](./REWARD.md) for details.
 
 ### Log Analysis
 

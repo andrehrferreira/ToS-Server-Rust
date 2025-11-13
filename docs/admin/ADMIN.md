@@ -19,11 +19,11 @@ The central API server is designed with replication to support high request volu
 - [PLAYER_MANAGEMENT.md](./PLAYER_MANAGEMENT.md) - Player management features
 - [CONTENT_MANAGEMENT.md](./CONTENT_MANAGEMENT.md) - Content management features
 - [INTERACTIVE_MAP.md](./INTERACTIVE_MAP.md) - Interactive map system
-- [SUPPORT_SYSTEM.md](./SUPPORT_SYSTEM.md) - Support ticket system
-- [REWARD_SYSTEM.md](./REWARD_SYSTEM.md) - Reward distribution system
+- [SUPPORT.md](./SUPPORT.md) - Support ticket system
+- [REWARD.md](./REWARD.md) - Reward distribution system
 - [LOG_ANALYSIS.md](./LOG_ANALYSIS.md) - Log analysis and viewing
 - [CHAT_MONITORING.md](./CHAT_MONITORING.md) - Chat monitoring system
-- [BACKUP_SYSTEM.md](./BACKUP_SYSTEM.md) - Backup and recovery system
+- [BACKUP.md](./BACKUP.md) - Backup and recovery system
 - [PERMISSIONS.md](./PERMISSIONS.md) - Security and permissions
 - [REAL_TIME_UPDATES.md](./REAL_TIME_UPDATES.md) - Real-time updates via SSE
 - [PERSISTENCE.md](./PERSISTENCE.md) - Data persistence and PostgreSQL

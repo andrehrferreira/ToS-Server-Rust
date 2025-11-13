@@ -120,7 +120,7 @@ impl ReplicationManager {
 
 ## Backup and Recovery
 
-All PostgreSQL data is backed up regularly. See [BACKUP_SYSTEM.md](./BACKUP_SYSTEM.md) for backup details.
+All PostgreSQL data is backed up regularly. See [BACKUP.md](./BACKUP.md) for backup details.
 
 ## Summary
 
