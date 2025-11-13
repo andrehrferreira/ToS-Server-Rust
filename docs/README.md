@@ -643,6 +643,8 @@ The server structure has been analyzed against industry standards. See:
 
 ### Client Documentation
 
+- [Client README](./client/README.md) - Complete client systems documentation
+- [ARCHITECTURE.md](./client/ARCHITECTURE.md) - Client architecture and project structure
 - [ENTITY_SYNC.md](./client/ENTITY_SYNC.md) - Entity synchronization documentation
   - Entity synchronization architecture (Unreal Engine plugin)
   - Position interpolation (smooth interpolation, extrapolation)

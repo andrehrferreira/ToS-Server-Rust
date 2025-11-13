@@ -868,4 +868,5 @@ Event BeginPlay
 - [SPELLS.md](./SPELLS.md) - Spells system architecture
 - [INPUT.md](./INPUT.md) - Input handling
 - [PLAYER_CONTROLLER.md](./PLAYER_CONTROLLER.md) - Player controller details
+- [ACTIONBAR.md](./ACTIONBAR.md) - ActionBar system (slots, hotkeys, cooldowns)
 

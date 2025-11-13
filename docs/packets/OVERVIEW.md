@@ -653,6 +653,7 @@ export class PacketExample extends Packet {
 - [ENTITY_PACKETS.md](./ENTITY_PACKETS.md) - Entity synchronization packets
 - [CONTAINER_PACKETS.md](./CONTAINER_PACKETS.md) - Container management packets
 - [PLAYER_PACKETS.md](./PLAYER_PACKETS.md) - Player-specific packets
+- [ACTIONBAR_PACKETS.md](./ACTIONBAR_PACKETS.md) - ActionBar packets (action call, add/remove, state sync)
 - [UI_PACKETS.md](./UI_PACKETS.md) - UI and interface packets
 - [NETWORK_PACKETS.md](./NETWORK_PACKETS.md) - Network and connection packets
 - [CLIENT_PACKETS.md](./CLIENT_PACKETS.md) - Client-to-server packet handlers
