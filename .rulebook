@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "installedAt": "2025-11-12T22:41:51.109Z",
+  "updatedAt": "2025-11-12T22:41:51.112Z",
+  "projectId": "cfbff3cc-171a-42a0-b35e-a70dd8bf6863",
+  "mode": "full",
+  "features": {
+    "openspec": true,
+    "watcher": true,
+    "agent": true,
+    "logging": true,
+    "telemetry": true,
+    "notifications": false,
+    "dryRun": false,
+    "gitHooks": false,
+    "repl": false,
+    "templates": false,
+    "context": false,
+    "health": false,
+    "plugins": false,
+    "parallel": false,
+    "smartContinue": false
+  },
+  "coverageThreshold": 95,
+  "language": "en",
+  "outputLanguage": "en",
+  "cliTools": [],
+  "maxParallelTasks": 1,
+  "timeouts": {
+    "taskExecution": 300000,
+    "cliResponse": 60000,
+    "testRun": 120000
+  },
+  "languages": [
+    "rust"
+  ],
+  "frameworks": [],
+  "modules": [
+    "openspec",
+    "context7"
+  ],
+  "modular": true,
+  "rulebookDir": "rulebook"
+}
