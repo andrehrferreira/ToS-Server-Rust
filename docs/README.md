@@ -318,6 +318,31 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
   - Integration with damage, resistance, and equipment systems
   - Rust implementation considerations
 
+- [ANCIENT_SCROLLS.md](./core/ANCIENT_SCROLLS.md) - Ancient Scrolls system documentation
+  - God-exclusive drops (only obtainable by defeating gods)
+  - Party rewards (6 random scrolls per god defeat)
+  - Skill cap increases (permanently increase caps to 105, 110, 115, or 120)
+  - Random distribution (scrolls randomly target skills and levels)
+  - Tradeable items (can be traded between players)
+  - Usage system (double-click + confirmation to consume)
+  - Impact on combat, crafting, gathering, and all skill systems
+  - RMT integration (completely random RMT scrolls)
+  - Economic impact and trading dynamics
+  - Rust implementation considerations
+
+- [POWER_OF_GODS.md](./core/POWER_OF_GODS.md) - Power of Gods system documentation
+  - Final boss exclusive drop (only obtainable by defeating the final boss)
+  - Massive attribute bonuses (+10, +20, +30, or +50 attribute points)
+  - Flexible distribution (can be allocated to STR, DEX, INT, CON, LCK, CHA)
+  - Permanent enhancement (once used, permanently increases attributes)
+  - Ultimate power (up to +10% additional stat points - 50/500)
+  - Competitive advantage (creates massive power differences between players)
+  - System-wide impact (affects combat, crafting, gathering, and all systems)
+  - Rare drop (extremely rare, only from final boss)
+  - Legendary item (highest tier item in the game)
+  - Economic value (one of the most valuable items)
+  - Rust implementation considerations
+
 ### Items Documentation
 
 - [EQUIPMENT.md](./items/EQUIPMENT.md) - Equipment system documentation
@@ -504,6 +529,49 @@ For detailed roadmap information, see [ROADMAP.md](./server/ROADMAP.md).
   - Crafting skill requirements and success rates
   - Skill serialization and persistence
   - Achievements system (skill-based achievements)
+  - Rust implementation considerations
+
+### Detailed Skill Documentation
+
+- [COMBAT_WITH_WEAPONS.md](./skills/COMBAT_WITH_WEAPONS.md) - One-handed melee weapons skill documentation
+  - Weapon types (Axe, Dagger, Sword, Hammer)
+  - Damage amplification and accuracy enhancement
+  - No miss system (damage reduction instead)
+  - Progressive perks at levels 2, 4, 6, 8, and 10
+  - Stat bonuses from perks (+5 Strength, +5 Dexterity)
+  - Build recommendations and integration with combat system
+  - Rust implementation considerations
+
+- [LONG_RANGE_WEAPONS.md](./skills/LONG_RANGE_WEAPONS.md) - Ranged weapons skill documentation
+  - Weapon types (Bow, Crossbow)
+  - Damage amplification, accuracy, and range enhancement
+  - Range penalty system and optimal range mechanics
+  - Progressive perks at levels 2, 4, 6, 8, and 10
+  - Stat bonuses from perks (+5 Strength, +5 Dexterity)
+  - Long-range combat mastery and close-range penalty elimination
+  - Build recommendations and integration with combat system
+  - Rust implementation considerations
+
+- [TWO_HANDED_WEAPONS.md](./skills/TWO_HANDED_WEAPONS.md) - Two-handed melee weapons skill documentation
+  - Weapon types (Two-Handed Axe, Sword, Hammer, Spear, Staff)
+  - Higher damage multiplier (6% per level vs 5% for one-handed)
+  - Damage amplification and accuracy enhancement
+  - Progressive perks at levels 2, 4, 6, 8, and 10
+  - Stat bonuses from perks (+5 Strength, +5 Dexterity)
+  - Critical hit mastery (enhanced chance and damage)
+  - Highest single-hit damage potential
+  - Build recommendations and integration with combat system
+  - Rust implementation considerations
+
+- [UNARMED_COMBAT.md](./skills/UNARMED_COMBAT.md) - Unarmed combat skill documentation
+  - No weapon requirement (always ready to fight)
+  - Attribute-based damage (scales with Strength and Dexterity)
+  - Damage amplification and accuracy enhancement
+  - Attack speed bonuses (+15% total from perks)
+  - Progressive perks at levels 2, 4, 6, 8, and 10
+  - Stat bonuses from perks (+5 Strength, +5 Dexterity)
+  - Fastest attack speed of all combat skills
+  - Build recommendations and integration with combat system
   - Rust implementation considerations
 
 - [GATHERING.md](./player/GATHERING.md) - Gathering system documentation

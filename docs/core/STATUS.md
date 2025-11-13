@@ -2,9 +2,11 @@
 
 ## Overview
 
-The status system defines how core attributes (STR, DEX, INT) affect an entity's primary resources: Health Points (HP), Mana, and Stamina. These calculations are balanced against the damage system to ensure fair and engaging combat. The system uses linear scaling to maintain predictable growth and prevent exponential power creep, making PvP balance achievable.
+The status system defines how core attributes (STR, DEX, INT, CON, LCK, CHA) affect an entity's primary resources: Health Points (HP), Mana, and Stamina. These calculations are balanced against the damage system to ensure fair and engaging combat. The system uses linear scaling to maintain predictable growth and prevent exponential power creep, making PvP balance achievable.
 
 **Note:** All resource values are multiplied by 10 to provide a greater sense of progression. This means HP, Mana, and Stamina calculations result in larger numbers (e.g., 3,100 HP instead of 310) while maintaining the same balance ratios with the damage system.
+
+**Attribute Cap:** Maximum 200 points can be allocated to a single attribute. This cap ensures balanced builds and prevents extreme min-maxing while maintaining build diversity.
 
 ## Key Features
 
@@ -21,13 +23,15 @@ The status system defines how core attributes (STR, DEX, INT) affect an entity's
 
 **Primary Functions:**
 - Increases Physical Damage (damage modifier)
-- Increases Health Points (HP)
+- Increases Health Points (HP) - moderate contribution
 - Increases Physical Resistance (see RESISTANCES.md)
-- Increases Stamina (secondary contribution)
+- Increases Weight Capacity
 
 **Resource Contributions:**
-- **HP**: Direct contribution (+1 HP per STR point)
-- **Stamina**: Secondary contribution (+2 Stamina per STR point)
+- **HP**: Moderate contribution (+25 HP per STR point, with 10x multiplier)
+
+**Attribute Cap:** Maximum 200 points
+**Max HP Contribution:** 200 * 25 = 5,000 HP
 
 ### Dexterity (DEX)
 
@@ -38,17 +42,58 @@ The status system defines how core attributes (STR, DEX, INT) affect an entity's
 - Increases Movement Speed and Attack Speed
 
 **Resource Contributions:**
-- **Stamina**: Primary contribution (+3 Stamina per DEX point)
+- **Stamina**: Primary contribution (+25 Stamina per DEX point, with 10x multiplier)
+
+**Attribute Cap:** Maximum 200 points
+**Max Stamina Contribution:** 200 * 25 = 5,000 Stamina
 
 ### Intelligence (INT)
 
 **Primary Functions:**
 - Increases Magic/Elemental Damage (damage modifier)
 - Increases Mana (primary contribution)
+- Increases Magic Barrier (magical damage absorption)
 - Increases Elemental Resistances (see RESISTANCES.md)
 
 **Resource Contributions:**
-- **Mana**: Primary contribution (+3 Mana per INT point)
+- **Mana**: Primary contribution (+35 Mana per INT point, with 10x multiplier)
+
+**Attribute Cap:** Maximum 200 points
+**Max Mana Contribution:** 200 * 35 = 7,000 Mana
+
+### Constitution (CON)
+
+**Primary Functions:**
+- Increases Health Points (HP) - primary contribution (more than STR)
+- Increases Weight Capacity (more than STR)
+- Increases Physical Resistance
+
+**Resource Contributions:**
+- **HP**: Primary contribution (+60 HP per CON point, with 10x multiplier)
+
+**Attribute Cap:** Maximum 200 points
+**Max HP Contribution:** 200 * 60 = 12,000 HP
+
+### Luck (LCK)
+
+**Primary Functions:**
+- Increases Crafting Success chance
+- Increases Rare Drop Rate
+- Increases Hit Chance (accuracy)
+- Increases Rare Collection chance
+
+**Resource Contributions:**
+- **No direct resource contributions** (affects crafting, drops, and combat accuracy)
+
+### Charisma (CHA)
+
+**Primary Functions:**
+- Reduces Crafting Cost
+- Reduces NPC Prices
+- Reduces Taxes (trading, guild, etc.)
+
+**Resource Contributions:**
+- **No direct resource contributions** (affects economic systems)
 
 ## Resource Calculations
 
@@ -56,33 +101,36 @@ The status system defines how core attributes (STR, DEX, INT) affect an entity's
 
 **Formula:**
 ```
-Max HP = Base HP + (VIG * VIG_HP_Multiplier) + (STR * STR_HP_Multiplier) + Equipment Bonuses
+Max HP = Base HP + (STR * STR_HP_Multiplier) + (CON * CON_HP_Multiplier) + Equipment Bonuses
 ```
 
 **Current Implementation:**
 ```
-Max HP = 100 + (VIG * 50) + (STR * 10) + Equipment Bonuses
+Max HP = 100 + (STR * 25) + (CON * 60) + Equipment Bonuses
 ```
 
 **Components:**
-- **Base HP**: 100 (starting HP for all entities)
-- **VIG Contribution**: VIG * 50 (primary HP attribute)
-- **STR Contribution**: STR * 10 (secondary HP contribution)
+- **Base HP**: 100 (starting HP for all entities, with 10x multiplier)
+- **STR Contribution**: STR * 25 (moderate HP contribution, 2.5 multiplier × 10)
+- **CON Contribution**: CON * 60 (primary HP contribution, 6.0 multiplier × 10)
 - **Equipment Bonuses**: Flat HP bonuses from equipment
 
 **Example Calculations:**
 ```
-Level 1 Player (STR: 10, VIG: 10):
-HP = 100 + (10 * 50) + (10 * 10) = 700 HP
+Level 1 Player (STR: 10, CON: 10):
+HP = 100 + (10 * 25) + (10 * 60) = 950 HP
 
-Level 50 Player (STR: 50, VIG: 50):
-HP = 100 + (50 * 50) + (50 * 10) = 3,100 HP
+Level 50 Player (STR: 50, CON: 50):
+HP = 100 + (50 * 25) + (50 * 60) = 4,350 HP
 
-Tank Build (STR: 100, VIG: 100):
-HP = 100 + (100 * 50) + (100 * 10) = 6,100 HP
+Tank Build (STR: 50, CON: 200):
+HP = 100 + (50 * 25) + (200 * 60) = 13,350 HP
 
-DPS Build (STR: 150, VIG: 50):
-HP = 100 + (50 * 50) + (150 * 10) = 4,100 HP
+DPS Build (STR: 200, CON: 50):
+HP = 100 + (200 * 25) + (50 * 60) = 5,600 HP
+
+Balanced Build (STR: 100, CON: 100):
+HP = 100 + (100 * 25) + (100 * 60) = 8,600 HP
 ```
 
 **Balance Considerations:**
@@ -95,11 +143,15 @@ HP = 100 + (50 * 50) + (150 * 10) = 4,100 HP
 ```rust
 pub fn calculate_max_hp(
     base_hp: u16,
-    vig: u16,
     str: u16,
+    con: u16,
     equipment_hp_bonus: u16,
 ) -> u16 {
-    base_hp + (vig * 50) + (str * 10) + equipment_hp_bonus
+    // Cap attributes at 200
+    let str_capped = str.min(200);
+    let con_capped = con.min(200);
+    
+    base_hp + (str_capped * 25) + (con_capped * 60) + equipment_hp_bonus
 }
 ```
 
@@ -112,27 +164,27 @@ Max Mana = Base Mana + (INT * INT_Mana_Multiplier) + Equipment Bonuses
 
 **Current Implementation:**
 ```
-Max Mana = 100 + (INT * 30) + Equipment Bonuses
+Max Mana = 100 + (INT * 35) + Equipment Bonuses
 ```
 
 **Components:**
-- **Base Mana**: 100 (starting mana for all entities)
-- **INT Contribution**: INT * 30 (primary mana attribute)
+- **Base Mana**: 100 (starting mana for all entities, with 10x multiplier)
+- **INT Contribution**: INT * 35 (primary mana attribute, 3.5 multiplier × 10)
 - **Equipment Bonuses**: Flat mana bonuses from equipment
 
 **Example Calculations:**
 ```
 Level 1 Player (INT: 10):
-Mana = 100 + (10 * 30) = 400 Mana
+Mana = 100 + (10 * 35) = 450 Mana
 
 Level 50 Player (INT: 50):
-Mana = 100 + (50 * 30) = 1,600 Mana
+Mana = 100 + (50 * 35) = 1,850 Mana
 
-Mage Build (INT: 150):
-Mana = 100 + (150 * 30) = 4,600 Mana
+Mage Build (INT: 200):
+Mana = 100 + (200 * 35) = 7,100 Mana
 
-Hybrid Build (INT: 75):
-Mana = 100 + (75 * 30) = 2,350 Mana
+Hybrid Build (INT: 100):
+Mana = 100 + (100 * 35) = 3,600 Mana
 ```
 
 **Balance Considerations:**
@@ -148,7 +200,10 @@ pub fn calculate_max_mana(
     int: u16,
     equipment_mana_bonus: u16,
 ) -> u16 {
-    base_mana + (int * 30) + equipment_mana_bonus
+    // Cap INT at 200
+    let int_capped = int.min(200);
+    
+    base_mana + (int_capped * 35) + equipment_mana_bonus
 }
 ```
 
@@ -156,34 +211,32 @@ pub fn calculate_max_mana(
 
 **Formula:**
 ```
-Max Stamina = Base Stamina + (STR * STR_Stamina_Multiplier) + (DEX * DEX_Stamina_Multiplier) + (VIG * VIG_Stamina_Multiplier) + Equipment Bonuses
+Max Stamina = Base Stamina + (DEX * DEX_Stamina_Multiplier) + Equipment Bonuses
 ```
 
 **Current Implementation:**
 ```
-Max Stamina = 100 + (STR * 20) + (DEX * 30) + (VIG * 10) + Equipment Bonuses
+Max Stamina = 100 + (DEX * 25) + Equipment Bonuses
 ```
 
 **Components:**
-- **Base Stamina**: 100 (starting stamina for all entities)
-- **STR Contribution**: STR * 20 (secondary stamina attribute)
-- **DEX Contribution**: DEX * 30 (primary stamina attribute)
-- **VIG Contribution**: VIG * 10 (tertiary stamina contribution)
+- **Base Stamina**: 100 (starting stamina for all entities, with 10x multiplier)
+- **DEX Contribution**: DEX * 25 (primary stamina attribute, 2.5 multiplier × 10)
 - **Equipment Bonuses**: Flat stamina bonuses from equipment
 
 **Example Calculations:**
 ```
-Level 1 Player (STR: 10, DEX: 10, VIG: 10):
-Stamina = 100 + (10 * 20) + (10 * 30) + (10 * 10) = 700 Stamina
+Level 1 Player (DEX: 10):
+Stamina = 100 + (10 * 25) = 350 Stamina
 
-Level 50 Player (STR: 50, DEX: 50, VIG: 50):
-Stamina = 100 + (50 * 20) + (50 * 30) + (50 * 10) = 3,100 Stamina
+Level 50 Player (DEX: 50):
+Stamina = 100 + (50 * 25) = 1,350 Stamina
 
-Rogue Build (STR: 50, DEX: 150, VIG: 50):
-Stamina = 100 + (50 * 20) + (150 * 30) + (50 * 10) = 5,600 Stamina
+Rogue Build (DEX: 200):
+Stamina = 100 + (200 * 25) = 5,100 Stamina
 
-Warrior Build (STR: 150, DEX: 50, VIG: 50):
-Stamina = 100 + (150 * 20) + (50 * 30) + (50 * 10) = 4,100 Stamina
+Warrior Build (DEX: 50):
+Stamina = 100 + (50 * 25) = 1,350 Stamina
 ```
 
 **Balance Considerations:**
@@ -196,12 +249,13 @@ Stamina = 100 + (150 * 20) + (50 * 30) + (50 * 10) = 4,100 Stamina
 ```rust
 pub fn calculate_max_stamina(
     base_stamina: u16,
-    str: u16,
     dex: u16,
-    vig: u16,
     equipment_stamina_bonus: u16,
 ) -> u16 {
-    base_stamina + (str * 20) + (dex * 30) + (vig * 10) + equipment_stamina_bonus
+    // Cap DEX at 200
+    let dex_capped = dex.min(200);
+    
+    base_stamina + (dex_capped * 25) + equipment_stamina_bonus
 }
 ```
 
@@ -215,17 +269,17 @@ pub struct EntityStatus {
     pub str: u16,
     pub dex: u16,
     pub int: u16,
-    pub vig: u16,
-    pub agi: u16,
-    pub luc: u16,
+    pub con: u16,
+    pub lck: u16,
+    pub cha: u16,
     
     // Bonus attributes from equipment
     pub bonus_str: u16,
     pub bonus_dex: u16,
     pub bonus_int: u16,
-    pub bonus_vig: u16,
-    pub bonus_agi: u16,
-    pub bonus_luc: u16,
+    pub bonus_con: u16,
+    pub bonus_lck: u16,
+    pub bonus_cha: u16,
     
     // Calculated resources
     pub max_hp: u16,
@@ -240,23 +294,20 @@ pub struct EntityStatus {
 
 impl EntityStatus {
     pub fn calculate_resources(&mut self, equipment_bonuses: &EquipmentBonuses) {
-        let total_vig = self.vig + self.bonus_vig;
-        let total_str = self.str + self.bonus_str;
-        let total_dex = self.dex + self.bonus_dex;
-        let total_int = self.int + self.bonus_int;
+        // Cap attributes at 200 (including bonuses)
+        let total_str = (self.str + self.bonus_str).min(200);
+        let total_dex = (self.dex + self.bonus_dex).min(200);
+        let total_int = (self.int + self.bonus_int).min(200);
+        let total_con = (self.con + self.bonus_con).min(200);
         
         // Calculate HP
-        self.max_hp = 100 + (total_vig * 50) + (total_str * 10) + equipment_bonuses.hp;
+        self.max_hp = 100 + (total_str * 25) + (total_con * 60) + equipment_bonuses.hp;
         
         // Calculate Mana
-        self.max_mana = 100 + (total_int * 30) + equipment_bonuses.mana;
+        self.max_mana = 100 + (total_int * 35) + equipment_bonuses.mana;
         
         // Calculate Stamina
-        self.max_stamina = 100 
-            + (total_str * 20) 
-            + (total_dex * 30) 
-            + (total_vig * 10) 
-            + equipment_bonuses.stamina;
+        self.max_stamina = 100 + (total_dex * 25) + equipment_bonuses.stamina;
         
         // Ensure current resources don't exceed maximums
         self.current_hp = self.current_hp.min(self.max_hp);
@@ -275,29 +326,40 @@ impl EntityStatus {
 - This means players need at least 2 hits to die (worst case)
 - Average case: 3-5 hits before death for engaging combat
 
-**HP Requirements by Level:**
+**HP Requirements by Level (with 200 cap):**
 ```
-Level 1-20:  700-3,100 HP   → Can survive 2-4 hits
-Level 21-40: 3,100-6,100 HP  → Can survive 3-5 hits
-Level 41-60: 6,100-9,100 HP  → Can survive 4-6 hits
-Level 61-80: 9,100-12,100 HP → Can survive 5-7 hits
-Level 81-100: 12,100-15,100 HP → Can survive 6-8 hits
+Level 1-20:  950-4,350 HP   → Can survive 2-4 hits
+Level 21-40: 4,350-8,600 HP  → Can survive 3-5 hits
+Level 41-60: 8,600-12,850 HP  → Can survive 4-6 hits
+Level 61-80: 12,850-17,100 HP → Can survive 5-7 hits
+Level 81-100: 17,100-21,350 HP → Can survive 6-8 hits
+
+Max HP Build (CON: 200, STR: 200): ~17,100 HP base (without equipment)
+Tank Build (CON: 200, STR: 50): ~13,350 HP base
+DPS Build (STR: 200, CON: 50): ~5,600 HP base
 ```
 
-**Damage Scaling:**
-- Equipment dice: 1D4 to 6D12 (1-72 base damage range)
-- Attribute modifiers: (STR/INT - 10) / 2
-- Skill bonuses: Skill Level * 2
-- Equipment bonuses: +20 to +100
+**Damage Scaling (balanced for max HP ~18,000):**
+- Equipment dice: 1D4 to 6D12 (1-72 base damage range, multiplied by 10)
+- Attribute modifiers: ((STR/INT - 10) / 2) * 15 (balanced multiplier)
+- Skill bonuses: (Skill Level * 2) * 15 (balanced multiplier)
+- Equipment bonuses: +20 to +200 (multiplied by 10)
+- **Balance Rationale**: Damage scales proportionally with HP maximum to prevent immortal builds
 
-**Example Balance Check:**
+**Example Balance Check (with 200 cap and proportional damage):**
 ```
-Endgame Build:
-- Max Damage: ~7,800 (from DAMAGE.md)
+Endgame DPS Build (STR: 200):
+- Attribute Modifier: ((200-10)/2)*15 = 1,425 (balanced for max HP)
+- Max Damage: ~10,830 base (with equipment, skills, multipliers)
+- After 70% Resistance: ~3,249 damage per hit
 - Average Player HP: ~12,000
-- Max PvP Damage: 6,000 (50% cap)
-- Hits to Kill: 12,000 / 6,000 = 2 hits (worst case)
-- Average Hits: 12,000 / 4,000 = 3 hits (more realistic)
+- Hits to Kill Average: 12,000 / 3,249 = ~3.7 hits (balanced!)
+
+Tank Build (CON: 200):
+- Max HP: ~13,350-18,000 (with equipment)
+- Max PvP Damage Taken: ~3,249 per hit (after 70% resistance)
+- Hits to Survive: 18,000 / 3,249 = ~5.5 hits (tanky but killable - not immortal!)
+- Balance: Tank builds are tanky but can be killed in reasonable time
 ```
 
 ### Mana vs Spell Costs Balance
@@ -307,11 +369,12 @@ Endgame Build:
 - Mid-tier spells: 200-400 mana (multiplied by 10)
 - High-tier spells: 400-600 mana (multiplied by 10)
 
-**Mana Pool Requirements:**
+**Mana Pool Requirements (with 200 cap):**
 ```
-Level 1 Mage (INT: 10):  400 Mana  → 2-4 low-tier spells
-Level 50 Mage (INT: 50): 1,600 Mana → 4-8 mid-tier spells
-Endgame Mage (INT: 150): 4,600 Mana → 8-15 high-tier spells
+Level 1 Mage (INT: 10):  450 Mana  → 2-4 low-tier spells
+Level 50 Mage (INT: 50): 1,850 Mana → 4-8 mid-tier spells
+Endgame Mage (INT: 200): 7,100 Mana → 14-18 high-tier spells
+Hybrid Mage (INT: 100): 3,600 Mana → 7-12 mid-tier spells
 ```
 
 **Balance Considerations:**
@@ -326,11 +389,12 @@ Endgame Mage (INT: 150): 4,600 Mana → 8-15 high-tier spells
 - Roll: 100 stamina per roll (multiplied by 10)
 - Skills: 200-500 stamina per use (multiplied by 10)
 
-**Stamina Pool Requirements:**
+**Stamina Pool Requirements (with 200 cap):**
 ```
-Level 1 Player:  700 Stamina  → 70 seconds sprint, 3-7 skill uses
-Level 50 Player: 3,100 Stamina → 310 seconds sprint, 6-15 skill uses
-Rogue Build:     5,600 Stamina → 560 seconds sprint, 11-28 skill uses
+Level 1 Player:  350 Stamina  → 35 seconds sprint, 1-3 skill uses
+Level 50 Player: 1,350 Stamina → 135 seconds sprint, 2-5 skill uses
+Rogue Build (DEX: 200): 5,100 Stamina → 510 seconds sprint, 10-25 skill uses
+Balanced Build (DEX: 100): 2,600 Stamina → 260 seconds sprint, 5-13 skill uses
 ```
 
 **Balance Considerations:**
@@ -343,62 +407,70 @@ Rogue Build:     5,600 Stamina → 560 seconds sprint, 11-28 skill uses
 ### Pure Tank Build
 
 **Attributes:**
-- STR: 100 (damage + HP)
+- STR: 50 (moderate damage + HP)
 - DEX: 10 (minimal)
 - INT: 10 (minimal)
-- VIG: 100 (primary HP)
+- CON: 200 (max HP - capped)
+- LCK: 30 (some hit chance)
+- CHA: 10 (minimal)
 
 **Resources:**
 ```
-HP = 100 + (100 * 50) + (100 * 10) = 6,100 HP
-Mana = 100 + (10 * 30) = 400 Mana
-Stamina = 100 + (100 * 20) + (10 * 30) + (100 * 10) = 3,400 Stamina
+HP = 100 + (50 * 25) + (200 * 60) = 13,350 HP
+Mana = 100 + (10 * 35) = 450 Mana
+Stamina = 100 + (10 * 25) = 350 Stamina
 ```
 
 **Characteristics:**
-- Very high HP (survives many hits)
+- Very high HP (survives many hits, ~2-3 hits from max damage)
 - Low mana (minimal spell casting)
-- Moderate stamina (good mobility)
+- Low stamina (limited mobility)
 
 ### Pure DPS Build
 
 **Attributes:**
-- STR: 150 (max damage)
+- STR: 200 (max damage - capped)
 - DEX: 50 (moderate stamina)
 - INT: 10 (minimal)
-- VIG: 50 (moderate HP)
+- CON: 50 (moderate HP)
+- LCK: 30 (some hit chance)
+- CHA: 10 (minimal)
 
 **Resources:**
 ```
-HP = 100 + (50 * 50) + (150 * 10) = 4,100 HP
-Mana = 100 + (10 * 30) = 400 Mana
-Stamina = 100 + (150 * 20) + (50 * 30) + (50 * 10) = 4,100 Stamina
+HP = 100 + (200 * 25) + (50 * 60) = 5,600 HP
+Mana = 100 + (10 * 35) = 450 Mana
+Stamina = 100 + (50 * 25) = 1,350 Stamina
 ```
 
 **Characteristics:**
-- Moderate HP (survives 2-3 hits)
+- Moderate HP (survives 2 hits, relies on damage output)
 - Low mana (minimal spell casting)
-- High stamina (good mobility)
+- Moderate stamina (good mobility)
+- High physical damage output
 
 ### Pure Mage Build
 
 **Attributes:**
-- STR: 10 (minimal)
-- DEX: 50 (moderate stamina)
-- INT: 150 (max damage + mana)
-- VIG: 50 (moderate HP)
+- STR: 20 (minimal)
+- DEX: 30 (some attack speed)
+- INT: 200 (max damage + mana - capped)
+- CON: 120 (survivability)
+- LCK: 50 (some hit chance)
+- CHA: 30 (minimal)
 
 **Resources:**
 ```
-HP = 100 + (50 * 50) + (10 * 10) = 2,700 HP
-Mana = 100 + (150 * 30) = 4,600 Mana
-Stamina = 100 + (10 * 20) + (50 * 30) + (50 * 10) = 2,200 Stamina
+HP = 100 + (20 * 25) + (120 * 60) = 7,400 HP
+Mana = 100 + (200 * 35) = 7,100 Mana
+Stamina = 100 + (30 * 25) = 850 Stamina
 ```
 
 **Characteristics:**
-- Low HP (survives 1-2 hits, needs protection)
-- Very high mana (many spell casts)
+- Moderate HP (survives 2-3 hits, needs protection)
+- Very high mana (many spell casts, ~14-18 high-tier spells)
 - Low stamina (limited mobility)
+- High magic damage output
 
 ### Hybrid Build
 
@@ -406,39 +478,45 @@ Stamina = 100 + (10 * 20) + (50 * 30) + (50 * 10) = 2,200 Stamina
 - STR: 75 (moderate damage + HP)
 - DEX: 75 (moderate stamina)
 - INT: 75 (moderate damage + mana)
-- VIG: 75 (moderate HP)
+- CON: 75 (moderate HP)
+- LCK: 50 (moderate hit chance)
+- CHA: 50 (moderate cost reduction)
 
 **Resources:**
 ```
-HP = 100 + (75 * 50) + (75 * 10) = 4,600 HP
-Mana = 100 + (75 * 30) = 2,350 Mana
-Stamina = 100 + (75 * 20) + (75 * 30) + (75 * 10) = 4,600 Stamina
+HP = 100 + (75 * 25) + (75 * 60) = 6,475 HP
+Mana = 100 + (75 * 35) = 2,725 Mana
+Stamina = 100 + (75 * 25) = 1,975 Stamina
 ```
 
 **Characteristics:**
 - Balanced HP (survives 2-3 hits)
 - Moderate mana (some spell casting)
-- High stamina (good mobility)
+- Good stamina (good mobility)
+- Versatile build
 
 ### Rogue Build
 
 **Attributes:**
-- STR: 50 (moderate damage)
-- DEX: 150 (max stamina + evasion)
-- INT: 10 (minimal)
-- VIG: 50 (moderate HP)
+- STR: 30 (minimal)
+- DEX: 200 (max stamina + evasion - capped)
+- INT: 20 (minimal)
+- CON: 30 (minimal)
+- LCK: 150 (high hit chance, rare drops)
+- CHA: 20 (minimal)
 
 **Resources:**
 ```
-HP = 100 + (50 * 50) + (50 * 10) = 3,100 HP
-Mana = 100 + (10 * 30) = 400 Mana
-Stamina = 100 + (50 * 20) + (150 * 30) + (50 * 10) = 5,600 Stamina
+HP = 100 + (30 * 25) + (30 * 60) = 3,250 HP
+Mana = 100 + (20 * 35) = 800 Mana
+Stamina = 100 + (200 * 25) = 5,100 Stamina
 ```
 
 **Characteristics:**
-- Moderate HP (survives 2 hits, relies on evasion)
+- Low HP (survives 1-2 hits, relies heavily on evasion)
 - Low mana (minimal spell casting)
-- Very high stamina (excellent mobility)
+- Very high stamina (excellent mobility, ~510 seconds sprint)
+- High evasion and ranged damage
 
 ## Resource Regeneration
 
@@ -507,22 +585,22 @@ Heavy Armor Penalty: Regen * 2 (if not wearing heavy armor)
 ```rust
 #[derive(Component, Clone, Copy)]
 pub struct Status {
-    pub str: u16,
-    pub dex: u16,
-    pub int: u16,
-    pub vig: u16,
-    pub agi: u16,
-    pub luc: u16,
+    pub str: u16,   // Max 200
+    pub dex: u16,   // Max 200
+    pub int: u16,   // Max 200
+    pub con: u16,   // Max 200
+    pub lck: u16,   // Max 200
+    pub cha: u16,   // Max 200
 }
 
 #[derive(Component, Clone, Copy)]
 pub struct StatusBonuses {
-    pub str: u16,
-    pub dex: u16,
-    pub int: u16,
-    pub vig: u16,
-    pub agi: u16,
-    pub luc: u16,
+    pub str: u16,   // Max 200 (total with base)
+    pub dex: u16,   // Max 200 (total with base)
+    pub int: u16,   // Max 200 (total with base)
+    pub con: u16,   // Max 200 (total with base)
+    pub lck: u16,   // Max 200 (total with base)
+    pub cha: u16,   // Max 200 (total with base)
 }
 
 #[derive(Component, Clone, Copy)]
@@ -564,9 +642,9 @@ impl Serialize for Status {
         buffer.extend_from_slice(&self.str.to_le_bytes());
         buffer.extend_from_slice(&self.dex.to_le_bytes());
         buffer.extend_from_slice(&self.int.to_le_bytes());
-        buffer.extend_from_slice(&self.vig.to_le_bytes());
-        buffer.extend_from_slice(&self.agi.to_le_bytes());
-        buffer.extend_from_slice(&self.luc.to_le_bytes());
+        buffer.extend_from_slice(&self.con.to_le_bytes());
+        buffer.extend_from_slice(&self.lck.to_le_bytes());
+        buffer.extend_from_slice(&self.cha.to_le_bytes());
         
         buffer
     }
@@ -586,7 +664,8 @@ impl Serialize for Status {
 ### Resistance System
 
 **Integration:**
-- VIG (Constitution) affects physical resistance
+- CON (Constitution) affects physical resistance
+- STR affects physical resistance
 - INT affects elemental resistances
 - See [RESISTANCES.md](./RESISTANCES.md) for resistance calculations
 
@@ -637,15 +716,64 @@ impl Serialize for Status {
 - Batch resource calculation performance
 - Memory usage for status data structures
 
+## Attribute Cap System
+
+### Cap Rules
+
+**Maximum Attribute Points:**
+- Each attribute can have a maximum of **200 points** (including base stats and bonuses)
+- This cap applies to the total value (base + equipment bonuses)
+- Prevents extreme min-maxing while maintaining build diversity
+
+**Enforcement:**
+- Attribute allocation is capped at 200 during stat point distribution
+- Equipment bonuses are included in the cap calculation
+- Total attribute value (base + bonuses) cannot exceed 200
+
+**Balance Rationale:**
+- Prevents builds from becoming too specialized
+- Ensures PvP remains balanced and engaging
+- Maintains meaningful choices in attribute distribution
+- Allows for diverse viable builds
+
+### Cap Examples
+
+**Pure DPS Build:**
+- STR: 200 (capped) → Max physical damage modifier
+- CON: 50 → Moderate HP
+- Result: High damage, moderate survivability
+
+**Pure Tank Build:**
+- CON: 200 (capped) → Max HP
+- STR: 50 → Moderate damage
+- Result: High survivability, moderate damage
+
+**Pure Mage Build:**
+- INT: 200 (capped) → Max magic damage and mana
+- CON: 120 → Moderate HP
+- Result: High magic damage, high mana pool
+
+**Rogue Build:**
+- DEX: 200 (capped) → Max stamina and ranged damage
+- CON: 30 → Low HP
+- Result: High mobility, high stamina, relies on evasion
+
 ## Summary
 
 The status system:
 
-- Calculates HP, Mana, and Stamina based on core attributes (STR, DEX, INT, VIG)
+- Calculates HP, Mana, and Stamina based on core attributes (STR, DEX, INT, CON, LCK, CHA)
 - Uses linear scaling to maintain predictable growth
+- Enforces a 200-point cap per attribute to ensure balanced builds
 - Balances resources against damage system for fair PvP
 - Supports diverse builds through different attribute distributions
 - Integrates with damage, resistance, equipment, and player systems
 
-This system creates balanced resource pools that work harmoniously with the damage system, ensuring engaging combat where players have sufficient resources to participate in extended encounters while maintaining strategic resource management.
+**Key Balance Points (with 200 cap):**
+- Max HP Build: ~13,350-18,000 HP (CON: 200)
+- Max DPS Build: ~5,600 HP, high damage (STR: 200)
+- Max Mage Build: ~7,100 Mana, high magic damage (INT: 200)
+- Max Rogue Build: ~5,100 Stamina, high mobility (DEX: 200)
+
+This system creates balanced resource pools that work harmoniously with the damage system, ensuring engaging combat where players have sufficient resources to participate in extended encounters while maintaining strategic resource management and preventing extreme min-maxing.
 

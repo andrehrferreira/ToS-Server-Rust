@@ -141,15 +141,19 @@ Each equipment item (weapons, tools, etc.) has a `Damage` property that defines 
 
 **2. Attribute Modifier**
 - Based on primary damage attribute (STR for physical, INT for magical)
-- Scales linearly with attribute points
-- Formula: `Attribute Modifier = ((Attribute - 10) / 2) * 10` (D&D style, multiplied by 10)
-- Example: STR 150 → Modifier: ((150-10)/2)*10 = 700
+- Scales linearly with attribute points, balanced against maximum HP
+- Formula: `Attribute Modifier = ((Attribute - 10) / 2) * 15` (balanced for 200 cap, multiplied by 10x base)
+- Example: STR 150 → Modifier: ((150-10)/2)*15 = 1,050
+- Example: STR 200 → Modifier: ((200-10)/2)*15 = 1,425
+- **Balance Rationale**: Ensures DPS builds can kill tank builds (max HP ~18,000) in 4-5 hits
 
 **3. Skill Bonus**
 - Based on relevant combat skill level
-- Provides scaling damage bonus
-- Formula: `Skill Bonus = (Skill Level * Skill_Multiplier) * 10` (multiplied by 10)
-- Example: Skill Level 50, Multiplier 2 → Bonus: (50*2)*10 = 1,000
+- Provides scaling damage bonus, balanced against maximum HP
+- Formula: `Skill Bonus = (Skill Level * Skill_Multiplier) * 15` (multiplied by 10x base, adjusted for balance)
+- Example: Skill Level 50, Multiplier 2 → Bonus: (50*2)*15 = 1,500
+- Example: Skill Level 100, Multiplier 2 → Bonus: (100*2)*15 = 3,000
+- **Balance Rationale**: Ensures skill progression scales proportionally with HP growth
 
 **4. Equipment Bonuses**
 - Flat bonuses from equipment attributes (multiplied by 10)
@@ -224,8 +228,8 @@ impl DamageRoll {
         damage_multiplier: f32,
     ) -> Self {
         let dice_roll = Self::roll_dice(dice_config) * 10; // Multiply by 10 for progression feel
-        let attribute_modifier = (((attribute as i16) - 10) / 2) * 10; // Multiply by 10
-        let skill_bonus = ((skill_level as i16) * 2) * 10; // Example: 2 damage per skill level, multiplied by 10
+        let attribute_modifier = (((attribute as i16) - 10) / 2) * 15; // Balanced for 200 cap
+        let skill_bonus = ((skill_level as i16) * 2) * 15; // Balanced for max HP scaling
         
         Self {
             dice_roll,
@@ -319,11 +323,13 @@ Total Damage = (D20 + Attribute_Modifier + Equipment + Skill) * Multiplier
 - Equipment: +5-10 per tier
 - Skills: +2-5 per skill level
 
-**Example Growth (with 10x multiplier):**
+**Example Growth (with balanced multipliers):**
 ```
-Level 1:  (Dice: 10.5*10 + STR: 0*10 + Equipment: 5*10 + Skill: 0*10) * 1.0 = 155 average
-Level 50: (Dice: 10.5*10 + STR: 100*10 + Equipment: 50*10 + Skill: 50*10) * 1.0 = 2,105 average
-Level 100: (Dice: 10.5*10 + STR: 200*10 + Equipment: 100*10 + Skill: 100*10) * 1.0 = 4,105 average
+Level 1:  (Dice: 10.5*10 + STR: 0*15 + Equipment: 5*10 + Skill: 0*15) * 1.0 = 155 average
+Level 50: (Dice: 10.5*10 + STR: 100*15 + Equipment: 50*10 + Skill: 50*15) * 1.0 = 2,855 average
+Level 100: (Dice: 10.5*10 + STR: 200*15 + Equipment: 100*10 + Skill: 100*15) * 1.0 = 5,605 average
+
+Note: Attribute and skill multipliers increased from 10 to 15 to balance against max HP (~18,000)
 ```
 
 ### Damage Range Control
@@ -348,72 +354,93 @@ Level 100: (Dice: 10.5*10 + STR: 200*10 + Equipment: 100*10 + Skill: 100*10) * 1
 
 ### Endgame Build Damage
 
-**Maximum Endgame Damage Calculation (with 10x multiplier):**
+**Maximum Endgame Damage Calculation (balanced for max HP ~18,000):**
 ```
-Max Endgame Damage = (Dice: 72*10 + Attribute: 200*10 + Equipment: 150*10 + Skill: 150*10) * Multiplier: 1.5
-Max Endgame Damage = (720 + 2,000 + 1,500 + 1,500) * 1.5 = 7,800 base damage
+Max Endgame Damage = (Dice: 72*10 + Attribute: 200*15 + Equipment: 200*10 + Skill: 100*15) * Multiplier: 1.5
+Max Endgame Damage = (720 + 3,000 + 2,000 + 1,500) * 1.5 = 10,830 base damage
 ```
 
 **After Resistance (70% cap):**
 ```
-Final Damage = 7,800 * (1 - 0.70) = 2,340 damage
+Final Damage = 10,830 * (1 - 0.70) = 3,249 damage
 ```
 
-**With PvP Cap (50% HP):**
+**Balance Check vs Max Tank Build (HP: 18,000):**
 ```
-If target has 12,000 HP:
-Max PvP Damage = min(2,340, 12,000 * 0.5) = 2,340 damage (no cap needed)
+Tank HP: 18,000
+Damage per hit: 3,249
+Hits to kill: 18,000 / 3,249 = ~5.5 hits (balanced!)
+PvP Cap: min(3,249, 18,000 * 0.5) = 3,249 (no cap needed, well balanced)
 ```
 
-### Endgame HP Requirements
+**Balance Check vs Average Build (HP: 12,000):**
+```
+Average HP: 12,000
+Damage per hit: 3,249
+Hits to kill: 12,000 / 3,249 = ~3.7 hits
+PvP Cap: min(3,249, 12,000 * 0.5) = 3,249 (no cap needed)
+```
 
-**To Balance Endgame Damage:**
-```
-Required HP = Max_Damage / 0.5
-Required HP = 7,800 / 0.5 = 15,600 HP minimum
-```
+### Endgame HP Requirements (with 200 cap)
+
+**HP Scaling (from STATUS.md):**
+- Base HP: 100
+- STR (200): 200 * 25 = 5,000 HP
+- CON (200): 200 * 60 = 12,000 HP
+- Equipment: +3,000-5,000 HP
+- **Max Tank Build: ~17,100-20,100 HP**
 
 **Recommended Endgame HP:**
-- **Minimum**: 15,000 HP (survives 2 hits from max damage)
-- **Average**: 20,000 HP (comfortable margin)
-- **Maximum**: 30,000 HP (tank builds)
+- **Minimum**: 5,600 HP (DPS build, STR: 200, CON: 50) - survives 2 hits
+- **Average**: 8,600-12,000 HP (balanced builds) - survives 3-4 hits
+- **Maximum**: 17,100-20,100 HP (tank build, CON: 200) - survives 5-6 hits
 
-**HP Sources:**
-- Base HP: 5,000
-- VIG (200): 200 * 50 = 10,000 HP
-- STR (200): 200 * 10 = 2,000 HP
-- Equipment: +5,000 HP
-- **Total: 22,000 HP (tank build)**
+**Balance Verification:**
+- Max DPS damage: ~10,830 base → ~3,249 after 70% resistance
+- Tank HP: ~18,000 → Dies in ~5.5 hits (balanced!)
+- Average HP: ~12,000 → Dies in ~3.7 hits (balanced!)
+- DPS HP: ~5,600 → Dies in ~1.7 hits (glass cannon, as intended)
 
-### Balance Verification
+### Balance Verification (with 200 cap and proportional damage)
 
-**Endgame DPS Build vs Average Player:**
+**Endgame DPS Build (STR: 200) vs Average Player (HP: 12,000):**
 ```
-DPS Build Damage: 7,800 base
-Average Player HP: 20,000
+DPS Build Damage: 10,830 base
+Average Player HP: 12,000
 Average Player Resistance: 50%
-Final Damage: 7,800 * 0.5 = 3,900
-Damage %: 3,900 / 20,000 = 19.5% (well below 50% limit)
+Final Damage: 10,830 * 0.5 = 5,415
+Damage %: 5,415 / 12,000 = 45.1% (just below 50% limit)
+Hits to Kill: 12,000 / 5,415 = ~2.2 hits
+PvP Cap: min(5,415, 12,000 * 0.5) = 5,415 (no cap needed)
 ```
 
-**Endgame DPS Build vs Tank Build:**
+**Endgame DPS Build (STR: 200) vs Tank Build (CON: 200, HP: 18,000):**
 ```
-DPS Build Damage: 7,800 base
-Tank Build HP: 30,000
+DPS Build Damage: 10,830 base
+Tank Build HP: 18,000
 Tank Build Resistance: 70%
-Final Damage: 7,800 * 0.3 = 2,340
-Damage %: 2,340 / 30,000 = 7.8% (very safe)
+Final Damage: 10,830 * 0.3 = 3,249
+Damage %: 3,249 / 18,000 = 18.0% (well below 50% limit)
+Hits to Kill: 18,000 / 3,249 = ~5.5 hits (balanced - tank is tanky but killable)
+PvP Cap: min(3,249, 18,000 * 0.5) = 3,249 (no cap needed)
 ```
 
-**Endgame DPS Build vs Low HP Build:**
+**Endgame DPS Build (STR: 200) vs DPS Build (STR: 200, HP: 5,600):**
 ```
-DPS Build Damage: 7,800 base
-Low HP Build HP: 12,000
-Low HP Build Resistance: 30%
-Final Damage: 7,800 * 0.7 = 5,460
-Damage %: 5,460 / 12,000 = 45.5% (just below 50% limit)
-PvP Cap Applied: min(5,460, 12,000 * 0.5) = 6,000 (capped at 50%)
+DPS Build Damage: 10,830 base
+DPS Build HP: 5,600
+DPS Build Resistance: 30%
+Final Damage: 10,830 * 0.7 = 7,581
+Damage %: 7,581 / 5,600 = 135.4% (would one-shot, but PvP cap applies)
+PvP Cap Applied: min(7,581, 5,600 * 0.5) = 2,800 (capped at 50%)
+Hits to Kill: 5,600 / 2,800 = 2 hits (glass cannon, as intended)
 ```
+
+**Balance Summary:**
+- Tank builds are tanky but killable in 5-6 hits (not immortal)
+- Average builds die in 3-4 hits (balanced)
+- DPS builds die in 2 hits (glass cannon trade-off)
+- Damage scales proportionally with HP maximum
 
 ## Mobility Factor (Optional Zero Padding)
 
@@ -507,17 +534,19 @@ pub fn calculate_physical_damage(
 }
 ```
 
-**Example Calculation:**
+**Example Calculation (balanced for max HP):**
 ```
 Weapon: 5D10 (rolls 35, multiplied by 10 = 350)
-STR: 150 → Modifier: 700 (70 * 10)
-Skill Level: 50 → Bonus: 1,000 (100 * 10)
-Equipment Bonuses: +200 (20 * 10)
-Multiplier: 1.2
+STR: 200 (capped) → Modifier: 1,425 ((200-10)/2*15)
+Skill Level: 100 → Bonus: 3,000 (100*2*15)
+Equipment Bonuses: +2,000 (200 * 10)
+Multiplier: 1.5
 
-Base Damage = (350 + 700 + 1,000 + 200) * 1.2 = 2,700
-Target Resistance: 40%
-Final Damage = 2,700 * (1 - 0.40) = 1,620
+Base Damage = (350 + 1,425 + 3,000 + 2,000) * 1.5 = 10,162
+Target Resistance: 70% (tank build)
+Final Damage = 10,162 * (1 - 0.70) = 3,049
+Target HP: 18,000
+Hits to Kill: 18,000 / 3,049 = ~5.9 hits (balanced!)
 ```
 
 ### Elemental Damage
@@ -569,17 +598,19 @@ pub fn calculate_elemental_damage(
 }
 ```
 
-**Example Calculation:**
+**Example Calculation (balanced for max HP):**
 ```
-Spell: 3D8 (rolls 18, multiplied by 10 = 180)
-INT: 150 → Modifier: 700 (70 * 10)
-Skill Level: 50 → Bonus: 1,000 (100 * 10)
-Equipment Bonuses: +150 (15 * 10)
-Multiplier: 1.2
+Spell: 6D12 (rolls 60, multiplied by 10 = 600)
+INT: 200 (capped) → Modifier: 1,425 ((200-10)/2*15)
+Skill Level: 100 → Bonus: 3,000 (100*2*15)
+Equipment Bonuses: +1,500 (150 * 10)
+Multiplier: 1.5
 
-Base Damage = (180 + 700 + 1,000 + 150) * 1.2 = 2,436
+Base Damage = (600 + 1,425 + 3,000 + 1,500) * 1.5 = 9,787
 Target Fire Resistance: 50%
-Final Damage = 2,436 * (1 - 0.50) = 1,218
+Final Damage = 9,787 * (1 - 0.50) = 4,894
+Target HP: 12,000
+Hits to Kill: 12,000 / 4,894 = ~2.5 hits (balanced!)
 ```
 
 ## Complete Damage Calculation Flow
@@ -647,17 +678,19 @@ pub fn calculate_damage(
     // Step 1: Roll equipment dice (e.g., "5D10", "2D6", "1D20") and multiply by 10
     let dice_roll = roll_dice(weapon.damage_dice) * 10;
     
-    // Step 2: Calculate attribute modifier and multiply by 10
+    // Step 2: Calculate attribute modifier (balanced for 200 cap and max HP)
     let attribute = match damage_type {
         DamageType::Physical => attacker.strength,
         _ => attacker.intelligence,
     };
-    let attribute_modifier = (((attribute as i16) - 10) / 2) * 10;
+    // Cap attribute at 200 for balance
+    let attribute_capped = attribute.min(200);
+    let attribute_modifier = (((attribute_capped as i16) - 10) / 2) * 15;
     
-    // Step 3: Calculate skill bonus and multiply by 10
+    // Step 3: Calculate skill bonus (balanced for max HP scaling)
     let skill = weapon.get_required_skill();
     let skill_level = attacker.get_skill_level(skill);
-    let skill_bonus = ((skill_level as i16) * 2) * 10; // 2 damage per skill level, multiplied by 10
+    let skill_bonus = ((skill_level as i16) * 2) * 15; // Balanced multiplier for HP scaling
     
     // Step 4: Get equipment bonuses and multiply by 10
     let equipment_bonuses = (weapon.get_enchantment_damage() 
@@ -696,80 +729,84 @@ pub fn calculate_damage(
 **Player A (DPS Build):**
 - Level: 50
 - STR: 150
-- Weapon Damage: 80
+- Weapon Damage: 5D10
 - Skill Level: 50
 - Damage Multiplier: 1.2
 
 **Player B (Average Build):**
 - Level: 50
-- HP: 3,100
+- HP: 4,350 (STR: 50, CON: 50)
 - Physical Resistance: 40%
 
 **Damage Calculation:**
 ```
 Weapon Dice: 5D10 (rolls 32, multiplied by 10 = 320)
-STR Modifier: (150 - 10) / 2 * 10 = 700
-Skill: 50 * 2 * 10 = 1,000
+STR Modifier: (150 - 10) / 2 * 15 = 1,050
+Skill: 50 * 2 * 15 = 1,500
 Equipment Bonuses: +200 (20 * 10)
-Base: (320 + 700 + 1,000 + 200) * 1.2 = 2,664
-After Resistance: 2,664 * (1 - 0.40) = 1,598.4
-PvP Cap Check: min(1,598.4, 3,100 * 0.5) = 1,550
-Final Damage: 1,550 (50% of HP - at cap)
+Base: (320 + 1,050 + 1,500 + 200) * 1.2 = 3,684
+After Resistance: 3,684 * (1 - 0.40) = 2,210
+PvP Cap Check: min(2,210, 4,350 * 0.5) = 2,175
+Final Damage: 2,175 (50% of HP - at cap)
+Hits to Kill: 4,350 / 2,175 = 2 hits
 ```
 
-**Result:** Player B survives with 50% HP remaining (at PvP cap), can react and counter-attack.
+**Result:** Player B survives with 50% HP remaining (at PvP cap), can react and counter-attack. Dies in 2 hits total.
 
 ### Scenario 2: Endgame vs Average
 
 **Player A (Endgame DPS):**
 - Level: 100
-- STR: 200
-- Weapon Damage: 150
+- STR: 200 (capped)
+- Weapon Damage: 6D12
 - Skill Level: 100
 - Damage Multiplier: 1.5
 
 **Player B (Average):**
 - Level: 50
-- HP: 3,100
+- HP: 4,350 (STR: 50, CON: 50)
 - Physical Resistance: 30%
 
 **Damage Calculation:**
 ```
-Weapon Dice: 6D12 (rolls 45, multiplied by 10 = 450 - maximum would be 720)
-STR Modifier: (200 - 10) / 2 * 10 = 950
-Skill: 100 * 2 * 10 = 2,000
-Equipment Bonuses: +500 (50 * 10)
-Base: (450 + 950 + 2,000 + 500) * 1.5 = 5,850
-After Resistance: 5,850 * (1 - 0.30) = 4,095
-PvP Cap: min(4,095, 3,100 * 0.5) = 1,550
-Final Damage: 1,550 (50% of HP - at cap)
+Weapon Dice: 6D12 (rolls 60, multiplied by 10 = 600)
+STR Modifier: (200 - 10) / 2 * 15 = 1,425
+Skill: 100 * 2 * 15 = 3,000
+Equipment Bonuses: +2,000 (200 * 10)
+Base: (600 + 1,425 + 3,000 + 2,000) * 1.5 = 10,537
+After Resistance: 10,537 * (1 - 0.30) = 7,376
+PvP Cap: min(7,376, 4,350 * 0.5) = 2,175
+Final Damage: 2,175 (50% of HP - at cap)
+Hits to Kill: 4,350 / 2,175 = 2 hits
 ```
 
-**Result:** Player B survives with 50% HP (at PvP cap), still has time to react.
+**Result:** Player B survives with 50% HP (at PvP cap), dies in 2 hits total. Balanced for level difference.
 
 ### Scenario 3: Maximum Damage Build
 
 **Player A (Max Damage Build):**
+- STR: 200 (capped)
 - All damage optimizations
-- Base Damage: 7,800 (from endgame example, multiplied by 10)
+- Base Damage: ~10,830 (balanced for max HP)
 
-**Player B (Minimum HP Build):**
-- HP: 2,700 (minimum viable mage build)
-- Resistance: 20% (low)
+**Player B (Tank Build):**
+- HP: 18,000 (CON: 200, STR: 50, with equipment)
+- Resistance: 70% (high)
 
 **Damage Calculation:**
 ```
-Weapon Dice: 6D12 (rolls 60, multiplied by 10 = 600 - high roll)
-STR Modifier: (200 - 10) / 2 * 10 = 950
-Skill: 100 * 2 * 10 = 2,000
-Equipment Bonuses: +1,000 (100 * 10)
-Base: (600 + 950 + 2,000 + 1,000) * 1.5 = 6,825
-After Resistance: 6,825 * (1 - 0.20) = 5,460
-PvP Cap: min(5,460, 2,700 * 0.5) = 1,350
-Final Damage: 1,350 (50% of HP - at cap)
+Weapon Dice: 6D12 (rolls 72, multiplied by 10 = 720 - max roll)
+STR Modifier: (200 - 10) / 2 * 15 = 1,425
+Skill: 100 * 2 * 15 = 3,000
+Equipment Bonuses: +2,000 (200 * 10)
+Base: (720 + 1,425 + 3,000 + 2,000) * 1.5 = 10,717
+After Resistance: 10,717 * (1 - 0.70) = 3,215
+PvP Cap: min(3,215, 18,000 * 0.5) = 3,215 (no cap needed)
+Final Damage: 3,215
+Hits to Kill: 18,000 / 3,215 = ~5.6 hits
 ```
 
-**Result:** Player B survives with exactly 50% HP, demonstrating the system working as intended.
+**Result:** Tank build survives 5-6 hits from max damage build. Tanky but killable - not immortal! Balanced.
 
 ## Rust Implementation Considerations
 
@@ -911,12 +948,20 @@ impl Serialize for DamageRoll {
 
 The damage system:
 
-- Uses D20-based calculations for stable, predictable damage growth
+- Uses dice-based calculations for stable, predictable damage growth
+- Scales damage proportionally with maximum HP to prevent immortal builds
 - Limits PvP damage to 50% of target's max HP to prevent one-shot scenarios
-- Balances endgame builds with appropriate HP values
+- Balances endgame builds: DPS kills tanks in 5-6 hits, average builds in 3-4 hits
+- Attribute modifiers and skill bonuses balanced for 200 cap and max HP (~18,000)
 - Provides optional mobility factor for build diversity
 - Scales linearly to maintain balance across all levels
 - Integrates with resistance, equipment, skill, and player systems
 
-This system creates engaging PvP encounters where players have time to react, strategize, and counter-attack, while maintaining fair and balanced combat across all levels and build types.
+**Key Balance Points:**
+- Max DPS Build (STR: 200): ~10,830 base damage → ~3,249 after 70% resistance
+- Max Tank Build (CON: 200): ~18,000 HP → Dies in ~5.6 hits (balanced, not immortal)
+- Average Build: ~12,000 HP → Dies in ~3.7 hits
+- DPS Build: ~5,600 HP → Dies in ~2 hits (glass cannon trade-off)
+
+This system creates engaging PvP encounters where players have time to react, strategize, and counter-attack, while ensuring that no build becomes immortal. Tank builds are tanky but killable, and damage scales proportionally with HP maximum.
 

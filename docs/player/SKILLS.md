@@ -8,7 +8,7 @@ The Skills system represents knowledge and expertise that players acquire throug
 
 - **24 Skills**: Comprehensive skill system covering combat, magic, gathering, crafting, and special skills
 - **Experience-Based Progression**: Skills level up through experience gained from use
-- **Skill Caps**: Maximum level limits for each skill (typically 10, can be increased)
+- **Skill Caps**: Maximum level limits for each skill (typically 100, can be increased)
 - **Stat Integration**: Skills can grant stat experience to primary/secondary stats
 - **Skill Bonuses**: Higher skill levels provide bonuses to related actions
 - **Progressive Difficulty**: Skill progression becomes slower at higher levels
@@ -222,8 +222,8 @@ The Skills system represents knowledge and expertise that players acquire throug
 
 ```typescript
 interface ISkillValue {
-    value: number;      // Current skill level (0-10+)
-    cap: number;        // Maximum skill level (default: 10)
+    value: number;      // Current skill level (0-100+)
+    cap: number;        // Maximum skill level (default: 100)
     experience: number; // Current experience points
 }
 ```
@@ -320,14 +320,15 @@ public getLevelFromExperience(experience: number) : number {
 - Skills start at level 0
 - Each level requires more experience than the previous
 - Level progression becomes slower at higher levels
-- Maximum level is limited by skill cap (default: 10)
+- Maximum level is limited by skill cap (default: 100)
 
 ### Skill Caps
 
 **Default Cap:**
-- Most skills start with cap of 10
+- Most skills start with cap of 100
 - Caps can be increased through:
-  - Power Scrolls (increase specific skill cap)
+  - **Ancient Scrolls** (increase skill cap to 105, 110, 115, or 120) - See [ANCIENT_SCROLLS.md](../core/ANCIENT_SCROLLS.md)
+  - Power Scrolls (increase specific skill cap) - Legacy system
   - Special items
   - Achievements
 
@@ -335,6 +336,15 @@ public getLevelFromExperience(experience: number) : number {
 - Skills cannot exceed their cap
 - Experience continues to accumulate but level stays at cap
 - Increasing cap allows further progression
+- Ancient Scrolls provide the highest cap increases (up to 120)
+
+**Ancient Scrolls:**
+- Only obtainable by defeating gods
+- Party receives 6 random scrolls per god defeat
+- Permanently increase skill cap beyond 100
+- Can increase cap to 105, 110, 115, or 120
+- Tradeable items with significant economic value
+- Create competitive advantages in all skill systems
 
 ## Stat Experience Integration
 
@@ -385,15 +395,19 @@ public void OnAddExperience(CharacterEntity character, int amount) {
 ```typescript
 public getSkillBonus(skill: SkillName) : number {
     const skillValue = this.getSkillValue(skill);
-    const modSkillValue = skillValue - 3; 
-    return (modSkillValue > 0) ? modSkillValue : 0;
+    const modSkillValue = skillValue - 10; 
+    // Returns percentage bonus (e.g., 45 for +45%)
+    return (modSkillValue > 0) ? Math.floor(modSkillValue * 0.5) : 0;
 }
 ```
 
-**Bonus Formula:**
-- Skill level 0-3: No bonus
-- Skill level 4+: Bonus = Skill Level - 3
-- Example: Level 10 skill = +7 bonus
+**Note:** This is a simplified example. Actual implementation varies by skill type (combat skills use 0.5% per level, two-handed weapons use 0.6% per level, etc.).
+
+**Bonus Formula (Combat Skills):**
+- Skill level 0-10: No bonus
+- Skill level 11-100: Bonus = (Skill Level - 10) × 0.5% per level
+- Example: Level 100 skill = +45% damage bonus (with perks: +60%)
+- Note: Different skills may have different scaling formulas
 
 ### Skill Bonus Applications
 
@@ -471,7 +485,7 @@ if(changeLevel && tmpValue < skillValue.cap) {
 2. Success → Normal XP gain
 3. Failure → Double XP gain (learning from mistakes)
 4. Insufficient skill → Quadruple XP gain (steep learning curve)
-5. Level 10 → Master achievement unlocked
+5. Level 100 → Maximum skill level reached (achievements unlock at level 10 for crafting skills)
 
 ### Gathering Skill Progression
 
@@ -536,13 +550,13 @@ public serializeSkills() : string {
     "skills": {
         "Combat With Weapons": {
             "Index": 0,
-            "Cap": 10,
+            "Cap": 100,
             "Value": 5,
             "Progress": 1250
         },
         "Mining": {
             "Index": 1,
-            "Cap": 10,
+            "Cap": 100,
             "Value": 8,
             "Progress": 3200
         }
